@@ -65,4 +65,4 @@ jobs:
         with:
           name: plumeimpactor-${{ matrix.platform }}
           path: |
-            target/release/plumeimpactor
+            target/release/plumeimpactor*

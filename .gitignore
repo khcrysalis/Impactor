@@ -3,3 +3,4 @@ state.plist
 .zsign_cache
 *.DS_Store
 /tests
+/build
