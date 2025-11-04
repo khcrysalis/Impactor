@@ -45,7 +45,7 @@ impl PlumeFrame {
         let top_row = BoxSizer::builder(Orientation::Horizontal).build();
 
         let device_picker = Choice::builder(&top_panel).build();
-        let apple_id_button = Button::builder(&top_panel).with_label("+").build();
+        let apple_id_button = Button::builder(&top_panel).with_label("Account").build();
 
         top_row.add(&device_picker, 1, SizerFlag::Expand | SizerFlag::All, 0);
         top_row.add_spacer(12);
@@ -429,27 +429,25 @@ fn run_login_flow(
 ) -> Result<Account, String> {
     let anisette_config =
         AnisetteConfiguration::default().set_configuration_path(env::temp_dir());
-    
+
     let rt = match Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => return Err(format!("Failed to create Tokio runtime: {}", e)),
     };
 
+    let (code_tx, code_rx) = std::sync::mpsc::channel::<Result<String, String>>();
+
     let account_result = rt.block_on(Account::login(
         || Ok((email.clone(), password.clone())),
         || {
-            let (tx, rx) = tokio::sync::oneshot::channel::<Result<String, String>>();
-
             if sender
-                .send(PlumeFrameMessage::AwaitingTwoFactorCode(tx))
+                .send(PlumeFrameMessage::AwaitingTwoFactorCode(code_tx.clone()))
                 .is_err()
             {
                 return Err("Failed to send 2FA request to main thread.".to_string());
             }
-
-            match rt.block_on(rx) {
-                Ok(Ok(code)) => Ok(code),
-                Ok(Err(e)) => Err(e),
+            match code_rx.recv() {
+                Ok(result) => result,
                 Err(_) => Err("2FA process cancelled or main thread error.".to_string()),
             }
         },

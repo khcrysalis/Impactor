@@ -2,7 +2,7 @@ use wxdragon::prelude::*;
 
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::TryRecvError;
-use tokio::sync::oneshot;
+use std::sync::mpsc as std_mpsc;
 
 use grand_slam::{auth::Account, developer::DeveloperSession};
 use types::{Device, Package, PlistInfoTrait};
@@ -18,7 +18,7 @@ pub enum PlumeFrameMessage {
     PackageInstallationStarted,
     AccountLogin(Account),
     AccountDeleted,
-    AwaitingTwoFactorCode(oneshot::Sender<Result<String, String>>),
+    AwaitingTwoFactorCode(std_mpsc::Sender<Result<String, String>>),
     Error(String),
 }
 
@@ -147,31 +147,7 @@ impl PlumeFrameMessageHandler {
                         return;
                     }
                 };
-
-				// Show a progress dialog before starting the async task
-                let progress_dialog = ProgressDialog::builder(
-                    &self.plume_frame.frame,
-                    "Installing package...",
-                    "Please wait while the installation is in progress.",
-                    100,
-                )
-                .with_style(ProgressDialogStyle::AppModal)
-                .build();
-				progress_dialog.show(true);
-
-				tokio::spawn(async move {
-					let package_name = package.get_name().unwrap_or_else(|| "Unknown".to_string());
-
-					println!("--- Install Task ---");
-					println!("Package: {}", package_name);
-					println!("-----------------------------------");
-
-					let session = DeveloperSession::with(account);
-					match session.qh_list_teams().await {
-						Ok(teams) => println!("Successfully listed teams: {:?}", teams),
-						Err(e) => println!("Failed to list teams: {:?}", e),
-					}
-				});
+				//
             }
             PlumeFrameMessage::AccountLogin(account) => {
                 self.account_credentials = Some(account);

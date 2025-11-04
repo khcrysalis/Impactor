@@ -18,6 +18,7 @@ jobs:
           - ubuntu-22.04
           - windows-latest
           - macos-latest
+          - macos-15-intel
 
     runs-on: ${{ matrix.platform }}
     steps:

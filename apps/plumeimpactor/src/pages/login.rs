@@ -10,29 +10,24 @@ pub struct LoginDialog {
 }
 
 pub fn create_login_dialog(parent: &Window) -> LoginDialog {
-	let dialog = Dialog::builder(parent, "Sign in with your Apple ID")
-		.with_style(DialogStyle::DefaultDialogStyle)
-		.build();
+    let dialog = Dialog::builder(parent, "Sign in with your Apple ID")
+        .with_style(DialogStyle::DefaultDialogStyle)
+        .build();
 
-	let sizer = BoxSizer::builder(Orientation::Vertical).build();
-	sizer.add_spacer(12);
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+    sizer.add_spacer(12);
 
-	let description = StaticText::builder(&dialog)
+    let description = StaticText::builder(&dialog)
 		.with_label("In order to use the main features for PlumeImpactor, you will\nneed to sign into your Apple ID. But don't worry! Your\ncredentials are sent to Apple and not anywhere else!")
 		.build();
-	sizer.add(&description, 0, SizerFlag::All, 12);
+	sizer.add(&description, 0, SizerFlag::Expand | SizerFlag::Left | SizerFlag::Right, 12);
 
 	let email_row = BoxSizer::builder(Orientation::Horizontal).build();
 	let email_label = StaticText::builder(&dialog)
 		.with_label("       Email:")
 		.build();
 	let email_field = TextCtrl::builder(&dialog).build();
-	email_row.add(
-		&email_label,
-		0,
-		SizerFlag::AlignCenterVertical | SizerFlag::All,
-		8,
-	);
+	email_row.add(&email_label, 0, SizerFlag::AlignCenterVertical | SizerFlag::All, 8);
 	email_row.add(&email_field, 1, SizerFlag::Expand | SizerFlag::All, 12);
 	sizer.add_sizer(&email_row, 0, SizerFlag::Expand | SizerFlag::All, 0);
 
@@ -41,33 +36,28 @@ pub fn create_login_dialog(parent: &Window) -> LoginDialog {
 	let password_field = TextCtrl::builder(&dialog)
 		.with_style(TextCtrlStyle::Password)
 		.build();
-	password_row.add(
-		&password_label,
-		0,
-		SizerFlag::AlignCenterVertical | SizerFlag::All,
-		8,
-	);
+	password_row.add(&password_label, 0, SizerFlag::AlignCenterVertical | SizerFlag::All, 8);
 	password_row.add(&password_field, 1, SizerFlag::Expand | SizerFlag::All, 12);
 	sizer.add_sizer(&password_row, 0, SizerFlag::Expand | SizerFlag::All, 0);
 
-	let button_sizer = BoxSizer::builder(Orientation::Horizontal).build();
-	let cancel_button = Button::builder(&dialog).with_label("Cancel").build();
-	let next_button = Button::builder(&dialog).with_label("Next").build();
-	button_sizer.add(&cancel_button, 1, SizerFlag::Expand | SizerFlag::All, 0);
-	button_sizer.add_spacer(12);
-	button_sizer.add(&next_button, 1, SizerFlag::Expand | SizerFlag::All, 0);
+    let button_sizer = BoxSizer::builder(Orientation::Horizontal).build();
+    let cancel_button = Button::builder(&dialog).with_label("Cancel").build();
+    let next_button = Button::builder(&dialog).with_label("Next").build();
+    button_sizer.add(&cancel_button, 1, SizerFlag::Expand | SizerFlag::All, 0);
+    button_sizer.add_spacer(12);
+    button_sizer.add(&next_button, 1, SizerFlag::Expand | SizerFlag::All, 0);
 
-	sizer.add_sizer(&button_sizer, 0, SizerFlag::AlignRight | SizerFlag::All, 12);
+    sizer.add_sizer(&button_sizer, 0, SizerFlag::AlignRight | SizerFlag::All, 12);
 
-	dialog.set_sizer(sizer, true);
+    dialog.set_sizer(sizer, true);
 
-	LoginDialog {
-		dialog,
-		email_field,
-		password_field,
-		cancel_button,
-		next_button,
-	}
+    LoginDialog {
+        dialog,
+        email_field,
+        password_field,
+        cancel_button,
+        next_button,
+    }
 }
 
 impl LoginDialog {
