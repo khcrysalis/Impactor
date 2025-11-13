@@ -1,5 +1,7 @@
 use wxdragon::prelude::*;
 
+use crate::frame::PlumeFrame;
+
 #[derive(Clone)]
 pub struct LoginDialog {
     pub dialog: Dialog,
@@ -94,5 +96,117 @@ impl LoginDialog {
         self.next_button.on_click(move |_evt| {
             on_next();
         });
+    }
+}
+
+// MARK: - AccountDialog
+
+#[derive(Clone)]
+pub struct AccountDialog {
+    pub dialog: Dialog,
+    pub logout_button: Button,
+    pub label: StaticText,
+}
+
+pub fn create_account_dialog(parent: &Window) -> AccountDialog {
+    let dialog = Dialog::builder(parent, "Account")
+        .with_style(DialogStyle::DefaultDialogStyle)
+        .build();
+
+    let sizer = BoxSizer::builder(Orientation::Vertical).build();
+    sizer.add_spacer(12);
+
+    let label = StaticText::builder(&dialog)
+        .with_label("")
+        .build();
+    sizer.add(&label, 0, SizerFlag::All, 12);
+
+    let buttons = BoxSizer::builder(Orientation::Horizontal).build();
+    let logout_button = Button::builder(&dialog).with_label("Log out").build();
+    buttons.add(&logout_button, 0, SizerFlag::All, 8);
+    sizer.add_sizer(&buttons, 0, SizerFlag::AlignRight | SizerFlag::All, 8);
+
+    dialog.set_sizer(sizer, true);
+
+    AccountDialog {
+        dialog,
+        logout_button,
+        label,
+    }
+}
+
+impl AccountDialog {
+    pub fn show_modal(&self) {
+        self.dialog.show_modal();
+    }
+
+    pub fn hide(&self) {
+        self.dialog.end_modal(0);
+    }
+
+    pub fn set_logout_handler(&self, on_logout: impl Fn() + 'static) {
+        let dialog = self.dialog.clone();
+        self.logout_button.on_click(move |_| {
+            on_logout();
+            dialog.end_modal(ID_OK as i32);
+        });
+    }
+    
+    pub fn set_account_name(&self, account_name: (String, String)) {
+        self.label.set_label(&format!("Logged in as {} {}", account_name.0, account_name.1));
+    }
+}
+
+// MARK: - Single Field Dialog
+impl PlumeFrame {
+    pub fn create_single_field_dialog(&self, title: &str, label: &str) -> Result<String, String> {
+        let dialog = Dialog::builder(&self.frame, title)
+            .with_style(DialogStyle::DefaultDialogStyle)
+            .build();
+
+        let sizer = BoxSizer::builder(Orientation::Vertical).build();
+        sizer.add_spacer(16);
+
+        sizer.add(
+            &StaticText::builder(&dialog).with_label(label).build(),
+            0,
+            SizerFlag::All,
+            12,
+        );
+        let text_field = TextCtrl::builder(&dialog).build();
+        sizer.add(&text_field, 0, SizerFlag::Expand | SizerFlag::All, 8);
+
+        let button_sizer = BoxSizer::builder(Orientation::Horizontal).build();
+
+        let cancel_button = Button::builder(&dialog).with_label("Cancel").build();
+        let ok_button = Button::builder(&dialog).with_label("OK").build();
+
+        button_sizer.add(&cancel_button, 0, SizerFlag::All, 8);
+        button_sizer.add_spacer(8);
+        button_sizer.add(&ok_button, 0, SizerFlag::All, 8);
+
+        sizer.add_sizer(&button_sizer, 0, SizerFlag::AlignRight | SizerFlag::All, 8);
+
+        dialog.set_sizer(sizer, true);
+
+        cancel_button.on_click({
+            let dialog = dialog.clone();
+            move |_| dialog.end_modal(ID_CANCEL as i32)
+        });
+        ok_button.on_click({
+            let dialog = dialog.clone();
+            move |_| dialog.end_modal(ID_OK as i32)
+        });
+
+        text_field.set_focus();
+
+        let rc = dialog.show_modal();
+        let result = if rc == ID_OK as i32 {
+            Ok(text_field.get_value().to_string())
+        } else {
+            Err("2FA cancelled".to_string())
+        };
+        dialog.destroy();
+        result
     }
 }

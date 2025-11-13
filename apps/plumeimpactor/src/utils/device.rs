@@ -11,6 +11,7 @@ pub const CONNECTION_LABEL: &str = "plume";
 #[derive(Debug, Clone)]
 pub struct Device {
     pub name: String,
+    pub uuid: String,
     pub usbmuxd_device: UsbmuxdDevice,
 }
 
@@ -19,6 +20,7 @@ impl Device {
         let name = get_name_from_usbmuxd_device(&usbmuxd_device).await.unwrap_or_default();
         Device { 
             name, 
+            uuid: usbmuxd_device.udid.clone(),
             usbmuxd_device 
         }
     }

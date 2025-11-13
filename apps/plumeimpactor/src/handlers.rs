@@ -5,10 +5,11 @@ use tokio::sync::mpsc::error::TryRecvError;
 use std::sync::mpsc as std_mpsc;
 
 use grand_slam::auth::Account;
-use crate::utils::{Device, Package};
 use grand_slam::utils::PlistInfoTrait;
 
 use crate::frame::PlumeFrame;
+use crate::keychain::AccountCredentials;
+use crate::utils::{Device, Package};
 
 #[derive(Debug)]
 pub enum PlumeFrameMessage {
@@ -16,16 +17,17 @@ pub enum PlumeFrameMessage {
     DeviceDisconnected(u32),
     PackageSelected(Package),
     PackageDeselected,
-    PackageInstallationStarted,
     AccountLogin(Account),
     AccountDeleted,
     AwaitingTwoFactorCode(std_mpsc::Sender<Result<String, String>>),
+    InstallProgress(i32, Option<String>),
     Error(String),
 }
 
 pub struct PlumeFrameMessageHandler {
     pub receiver: mpsc::UnboundedReceiver<PlumeFrameMessage>,
     pub plume_frame: PlumeFrame,
+    pub installation_progress_dialog: Option<ProgressDialog>,
     // --- device ---
     pub usbmuxd_device_list: Vec<Device>,
     pub usbmuxd_selected_device_id: Option<String>,
@@ -47,6 +49,7 @@ impl PlumeFrameMessageHandler {
             usbmuxd_selected_device_id: None,
             package_selected: None,
             account_credentials: None,
+            installation_progress_dialog: None,
         }
     }
 
@@ -106,14 +109,20 @@ impl PlumeFrameMessageHandler {
                     return;
                 }
 
-                let package_name = package.get_name().unwrap_or_else(|| "Unknown".to_string());
+                let package_name = package
+                    .get_name()
+                    .unwrap_or_else(|| "Unknown".to_string());
                 let package_id = package
                     .get_bundle_identifier()
                     .unwrap_or_else(|| "Unknown".to_string());
+                let package_version = package
+                    .get_version()
+                    .unwrap_or_else(|| "Unknown".to_string());
+                
                 self.package_selected = Some(package);
                 self.plume_frame
                     .install_page
-                    .set_top_text(format!("{} - {}", package_name, package_id).as_str());
+                    .set_top_text(format!("{} - {} ({})", package_name, package_id, package_version).as_str());
                 self.plume_frame.default_page.panel.hide();
                 self.plume_frame.install_page.panel.show(true);
                 self.plume_frame.frame.layout();
@@ -124,20 +133,29 @@ impl PlumeFrameMessageHandler {
                 self.plume_frame.default_page.panel.show(true);
                 self.plume_frame.frame.layout();
             }
-			PlumeFrameMessage::PackageInstallationStarted => {
-                todo!()
-            }
             PlumeFrameMessage::AccountLogin(account) => {
-                self.account_credentials = Some(account);
-                let creds = crate::keychain::AccountCredentials;
-                let email = creds.get_email().unwrap_or_else(|_| "(unknown)".to_string());
-                let msg = format!("Logged in as {:?} ({})", self.account_credentials.clone().unwrap().get_name(), email);
-                let dialog = MessageDialog::builder(&self.plume_frame.frame, &msg, "Signed In")
-                    .with_style(MessageDialogStyle::OK | MessageDialogStyle::IconInformation)
-                    .build();
+                let (first, last) = account.get_name();
+                let dialog = MessageDialog::builder(
+                    &self.plume_frame.frame, 
+                    &format!("Logged in as {} {}", first, last), 
+                    "Signed In"
+                )
+                .with_style(MessageDialogStyle::OK | MessageDialogStyle::IconInformation)
+                .build();
                 dialog.show_modal();
+                self.account_credentials = Some(account);
             }
             PlumeFrameMessage::AccountDeleted => {
+                if self.account_credentials.is_none() {
+                    return;
+                }
+                
+                let creds = AccountCredentials;
+                if let Err(e) = creds.delete_password() {
+                    self.handle_message(PlumeFrameMessage::Error(format!("Failed to delete account credentials: {}", e)));
+                    return;
+                }
+                
                 self.account_credentials = None;
             }
             PlumeFrameMessage::AwaitingTwoFactorCode(tx) => {
@@ -147,8 +165,31 @@ impl PlumeFrameMessageHandler {
                 );
 
                 if let Err(e) = tx.send(result) {
-                    println!("Failed to send 2FA code back to background thread: {:?}", e);
-                    
+                    self.handle_message(PlumeFrameMessage::Error(format!("Failed to send two-factor code response: {}", e)));
+                }
+            }
+            PlumeFrameMessage::InstallProgress(progress, message_opt) => {
+                let Some(selected_package) = &self.package_selected else {
+                    return;
+                };
+                
+                if self.installation_progress_dialog.is_none() {
+                    let progress_dialog = ProgressDialog::builder(
+                        &self.plume_frame.frame,
+                        &format!("Installing {}", selected_package.get_name().unwrap_or("Unknown".to_string())),
+                        "Waiting...",
+                        100
+                    )
+                    .show_estimated_time().show_remaining_time().smooth().build();
+                    self.installation_progress_dialog = Some(progress_dialog);
+                }
+
+                if let Some(dialog) = &mut self.installation_progress_dialog {
+                    dialog.update(progress, message_opt.as_deref());
+
+                    if progress >= 100 {
+                        self.installation_progress_dialog = None;
+                    }
                 }
             }
             PlumeFrameMessage::Error(error_msg) => {

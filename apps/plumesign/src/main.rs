@@ -48,17 +48,17 @@ async fn main() {
 
     rustls::crypto::ring::default_provider()
         .install_default()
-        .expect("Failed to install rustls crypto provider");
+        .expect("--x failed to install rustls crypto provider");
 
     match &cli.command {
         Commands::Sign(args) => {
             if args.pem_files.len() < 2 {
-                eprintln!("Error: At least two PEM files (certificate and key) are required via --pem.");
+                eprintln!("--x at least two PEM files (certificate and key) are required via --pem.");
                 exit(1);
             }
             
             let signing_key = Certificate::new(args.pem_files.clone().into()).unwrap_or_else(|e| {
-                eprintln!("Failed to create Certificate: {e}");
+                eprintln!("--x failed to create Certificate: {e}");
                 exit(1);
             });
 
@@ -66,7 +66,7 @@ async fn main() {
                 .map(MobileProvision::load)
                 .collect::<Result<Vec<_>, _>>()
                 .unwrap_or_else(|e| {
-                    eprintln!("Failed to load provisioning profiles: {e}");
+                    eprintln!("--x failed to load provisioning profiles: {e}");
                     exit(1);
                 });
 
@@ -81,11 +81,11 @@ async fn main() {
 
             let target_path = args.bundle.clone();
             if let Err(e) = signer.sign(target_path.clone()) {
-                eprintln!("Failed to sign target: {e}");
+                eprintln!("--x failed to sign: {e}");
                 exit(1);
             }
             
-            println!("Signed target: {:?}", target_path);
+            println!("--> signed: {:?}", target_path);
         }
     }
 }

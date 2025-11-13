@@ -5,20 +5,22 @@ use std::{env, ptr, thread};
 
 use grand_slam::AnisetteConfiguration;
 use grand_slam::auth::Account;
+use grand_slam::developer::DeveloperSession;
+use grand_slam::utils::PlistInfoTrait;
+use idevice::IdeviceService;
+use idevice::lockdown::LockdownClient;
 use wxdragon::prelude::*;
 
 use futures::StreamExt;
-use idevice::usbmuxd::{UsbmuxdConnection, UsbmuxdListenEvent};
+use idevice::usbmuxd::{UsbmuxdAddr, UsbmuxdConnection, UsbmuxdListenEvent};
 use tokio::runtime::Builder;
 use tokio::sync::mpsc;
 
 use crate::APP_NAME;
 use crate::handlers::{PlumeFrameMessage, PlumeFrameMessageHandler};
 use crate::keychain::AccountCredentials;
-use crate::pages::login::LoginDialog;
-use crate::pages::{
-    DefaultPage, InstallPage, create_default_page, create_install_page, create_login_dialog,
-};
+use crate::pages::login::{AccountDialog, LoginDialog};
+use crate::pages::{DefaultPage, InstallPage, create_account_dialog, create_default_page, create_install_page, create_login_dialog};
 use crate::utils::{Device, Package};
 
 pub struct PlumeFrame {
@@ -30,6 +32,7 @@ pub struct PlumeFrame {
     pub add_ipa_button: Button,
     pub apple_id_button: Button,
     pub login_dialog: LoginDialog,
+    pub account_dialog: AccountDialog,
 }
 
 impl PlumeFrame {
@@ -83,6 +86,7 @@ impl PlumeFrame {
             add_ipa_button,
             apple_id_button,
             login_dialog: create_login_dialog(&frame),
+            account_dialog: create_account_dialog(&frame),
         };
 
         s.setup_event_handlers();
@@ -138,12 +142,7 @@ impl PlumeFrame {
                 let mut muxer = match UsbmuxdConnection::default().await {
                     Ok(muxer) => muxer,
                     Err(e) => {
-                        sender
-                            .send(PlumeFrameMessage::Error(format!(
-                                "Failed to connect to usbmuxd: {}",
-                                e
-                            )))
-                            .ok();
+                        sender.send(PlumeFrameMessage::Error(format!("Failed to connect to usbmuxd: {}", e))).ok();
                         return;
                     }
                 };
@@ -151,30 +150,18 @@ impl PlumeFrame {
                 match muxer.get_devices().await {
                     Ok(devices) => {
                         for dev in devices {
-                            sender
-                                .send(PlumeFrameMessage::DeviceConnected(Device::new(dev).await))
-                                .ok();
+                            sender.send(PlumeFrameMessage::DeviceConnected(Device::new(dev).await)).ok();
                         }
                     }
                     Err(e) => {
-                        sender
-                            .send(PlumeFrameMessage::Error(format!(
-                                "Failed to get initial device list: {}",
-                                e
-                            )))
-                            .ok();
+                        sender.send(PlumeFrameMessage::Error(format!("Failed to get initial device list: {}", e))).ok();
                     }
                 }
 
                 let mut stream = match muxer.listen().await {
                     Ok(stream) => stream,
                     Err(e) => {
-                        sender
-                            .send(PlumeFrameMessage::Error(format!(
-                                "Failed to listen for events: {}",
-                                e
-                            )))
-                            .ok();
+                        sender.send(PlumeFrameMessage::Error(format!("Failed to listen for events: {}", e))).ok();
                         return;
                     }
                 };
@@ -208,9 +195,7 @@ impl PlumeFrame {
 
             let (email, password) = match (creds.get_email(), creds.get_password()) {
                 (Ok(email), Ok(password)) => (email, password),
-                _ => {
-                    return;
-                }
+                _ => { return; }
             };
 
             match run_login_flow(sender.clone(), email, password) {
@@ -218,9 +203,7 @@ impl PlumeFrame {
                     sender.send(PlumeFrameMessage::AccountLogin(account)).ok();
                 }
                 Err(e) => {
-                    sender
-                        .send(PlumeFrameMessage::Error(format!("Login error: {}", e)))
-                        .ok();
+                    sender.send(PlumeFrameMessage::Error(format!("Login error: {}", e))).ok();
                     sender.send(PlumeFrameMessage::AccountDeleted).ok();
                 }
             }
@@ -247,61 +230,26 @@ impl PlumeFrame {
         // --- Apple ID / Login Dialog ---
 
         let login_dialog_rc = Rc::new(self.login_dialog.clone());
+        let account_dialog_rc = Rc::new(self.account_dialog.clone());
+        let handler_for_account = message_handler.clone();
         self.apple_id_button.on_click({
             let login_dialog = login_dialog_rc.clone();
-            let handler_for_account = message_handler.clone();
-            let frame_for_dialog = self.frame.clone();
-            let sender_for_logout = sender.clone();
+            let account_dialog = account_dialog_rc.clone();
             move |_| {
-                let logged_in = handler_for_account.borrow().account_credentials.is_some();
-
-                if logged_in {
-                    let creds = AccountCredentials;
-                    let email = creds
-                        .get_email()
-                        .unwrap_or_else(|_| "(unknown)".to_string());
-
-                    let dialog = Dialog::builder(&frame_for_dialog, "Account")
-                        .with_style(DialogStyle::DefaultDialogStyle)
-                        .build();
-
-                    let sizer = BoxSizer::builder(Orientation::Vertical).build();
-                    sizer.add_spacer(12);
-                    let label = StaticText::builder(&dialog)
-                        .with_label(&format!(
-                            "Logged in as {:?} ({})",
-                            handler_for_account
-                                .borrow()
-                                .account_credentials
-                                .clone()
-                                .unwrap()
-                                .get_name(),
-                            email
-                        ))
-                        .build();
-                    sizer.add(&label, 0, SizerFlag::All, 12);
-
-                    let buttons = BoxSizer::builder(Orientation::Horizontal).build();
-                    let logout_btn = Button::builder(&dialog).with_label("Log out").build();
-                    buttons.add(&logout_btn, 0, SizerFlag::All, 8);
-                    sizer.add_sizer(&buttons, 0, SizerFlag::AlignRight | SizerFlag::All, 8);
-
-                    dialog.set_sizer(sizer, true);
-
-                    let dlg_logout = dialog.clone();
-                    let sender_clone = sender_for_logout.clone();
-                    logout_btn.on_click(move |_| {
-                        let creds = AccountCredentials;
-                        creds.delete_password().ok();
-                        sender_clone.send(PlumeFrameMessage::AccountDeleted).ok();
-                        dlg_logout.end_modal(ID_OK as i32);
-                    });
-
-                    dialog.show_modal();
-                    dialog.destroy();
+                if let Some(creds) = handler_for_account.borrow().account_credentials.as_ref() {
+                    let (first, last) = creds.get_name();
+                    account_dialog.set_account_name((first, last));
+                    account_dialog.show_modal();
                 } else {
                     login_dialog.show_modal();
                 }
+            }
+        });
+        
+        self.account_dialog.set_logout_handler({
+            let sender = sender.clone();
+            move || {
+                sender.send(PlumeFrameMessage::AccountDeleted).ok();
             }
         });
 
@@ -322,16 +270,92 @@ impl PlumeFrame {
             }
         });
 
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        let message_handler_for_install = message_handler.clone();
         self.install_page.set_install_handler({
+            let frame = self.frame.clone();
             let sender = sender.clone();
             move || {
-                sender
-                    .send(PlumeFrameMessage::PackageInstallationStarted)
-                    .ok();
+            let binding = message_handler_for_install.borrow();
+
+            let Some(selected_device) = binding.usbmuxd_selected_device_id.as_deref() else {
+                sender.send(PlumeFrameMessage::Error("No device selected for installation.".to_string())).ok();
+                return;
+            };
+            
+            let Some(selected_package) = binding.package_selected.as_ref() else {
+                sender.send(PlumeFrameMessage::Error("No package selected for installation.".to_string())).ok();
+                return;
+            };
+
+            let Some(selected_account) = binding.account_credentials.as_ref() else {
+                sender.send(PlumeFrameMessage::Error("No Apple ID account available for installation.".to_string())).ok();
+                return;
+            };
+
+            let package = selected_package.clone();
+            let account = selected_account.clone();
+            let device_id = selected_device.to_string();
+            let sender_clone = sender.clone();
+
+            thread::spawn(move || {
+                let rt = Builder::new_current_thread().enable_all().build().unwrap();
+
+                let install_result = rt.block_on(async {
+                    let anisette_config = AnisetteConfiguration::default()
+                        .set_configuration_path(PathBuf::from(env::temp_dir()));
+
+                    let session = DeveloperSession::with(account.clone());
+                    
+                    sender_clone.send(PlumeFrameMessage::InstallProgress(0, Some("Ensuring device is registered...".to_string()))).ok();
+
+                    let mut usbmuxd = UsbmuxdConnection::default().await
+                        .map_err(|e| format!("usbmuxd connect error: {e}"))?;
+                    let usbmuxd_device = usbmuxd.get_devices().await
+                        .map_err(|e| format!("usbmuxd device list error: {e}"))?
+                        .into_iter()
+                        .find(|d| d.device_id.to_string() == device_id)
+                        .ok_or_else(|| format!("Device ID {device_id} not found"))?;
+
+                    let mut lockdown = LockdownClient::connect(
+                        &usbmuxd_device.to_provider(UsbmuxdAddr::default(), "plume_install")
+                    )
+                    .await
+                    .map_err(|e| format!("lockdown connect error: {e}"))?;
+
+                    Ok::<_, String>(())
+                });
+
+                if let Err(e) = install_result {
+                    sender_clone.send(PlumeFrameMessage::InstallProgress(100, Some(format!("Install failed: {}", e)))).ok();
+                    return;
+                }
+            });
             }
         });
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
     }
 
+    
     fn bind_login_dialog_next_handler(
         &self,
         sender: mpsc::UnboundedSender<PlumeFrameMessage>,
@@ -356,12 +380,7 @@ impl PlumeFrame {
 
             let creds = AccountCredentials;
             if let Err(e) = creds.set_credentials(email.clone(), password.clone()) {
-                sender
-                    .send(PlumeFrameMessage::Error(format!(
-                        "Failed to save credentials: {}",
-                        e
-                    )))
-                    .ok();
+                sender.send(PlumeFrameMessage::Error(format!("Failed to save credentials: {}", e))).ok();
                 return;
             }
 
@@ -371,12 +390,8 @@ impl PlumeFrame {
             let sender_for_login_thread = sender.clone();
             thread::spawn(move || {
                 match run_login_flow(sender_for_login_thread.clone(), email, password) {
-                    Ok(account) => sender_for_login_thread
-                        .send(PlumeFrameMessage::AccountLogin(account))
-                        .ok(),
-                    Err(e) => sender_for_login_thread
-                        .send(PlumeFrameMessage::Error(format!("Login failed: {}", e)))
-                        .ok(),
+                    Ok(account) => sender_for_login_thread.send(PlumeFrameMessage::AccountLogin(account)).ok(),
+                    Err(e) => sender_for_login_thread.send(PlumeFrameMessage::Error(format!("Login failed: {}", e))).ok(),
                 }
             });
         });
@@ -413,70 +428,12 @@ impl PlumeFrame {
     fn process_package_file(sender: mpsc::UnboundedSender<PlumeFrameMessage>, file_path: PathBuf) {
         match Package::new(file_path) {
             Ok(package) => {
-                sender
-                    .send(PlumeFrameMessage::PackageSelected(package))
-                    .ok();
+                sender.send(PlumeFrameMessage::PackageSelected(package)).ok();
             }
             Err(e) => {
-                sender
-                    .send(PlumeFrameMessage::Error(format!(
-                        "Failed to open package: {}",
-                        e
-                    )))
-                    .ok();
+                sender.send(PlumeFrameMessage::Error(format!("Failed to open package: {}", e))).ok();
             }
         }
-    }
-
-    pub fn create_single_field_dialog(&self, title: &str, label: &str) -> Result<String, String> {
-        let dialog = Dialog::builder(&self.frame, title)
-            .with_style(DialogStyle::DefaultDialogStyle)
-            .build();
-
-        let sizer = BoxSizer::builder(Orientation::Vertical).build();
-        sizer.add_spacer(16);
-
-        sizer.add(
-            &StaticText::builder(&dialog).with_label(label).build(),
-            0,
-            SizerFlag::All,
-            12,
-        );
-        let text_field = TextCtrl::builder(&dialog).build();
-        sizer.add(&text_field, 0, SizerFlag::Expand | SizerFlag::All, 8);
-
-        let button_sizer = BoxSizer::builder(Orientation::Horizontal).build();
-
-        let cancel_button = Button::builder(&dialog).with_label("Cancel").build();
-        let ok_button = Button::builder(&dialog).with_label("OK").build();
-
-        button_sizer.add(&cancel_button, 0, SizerFlag::All, 8);
-        button_sizer.add_spacer(8);
-        button_sizer.add(&ok_button, 0, SizerFlag::All, 8);
-
-        sizer.add_sizer(&button_sizer, 0, SizerFlag::AlignRight | SizerFlag::All, 8);
-
-        dialog.set_sizer(sizer, true);
-
-        cancel_button.on_click({
-            let dialog = dialog.clone();
-            move |_| dialog.end_modal(ID_CANCEL as i32)
-        });
-        ok_button.on_click({
-            let dialog = dialog.clone();
-            move |_| dialog.end_modal(ID_OK as i32)
-        });
-
-        text_field.set_focus();
-
-        let rc = dialog.show_modal();
-        let result = if rc == ID_OK as i32 {
-            Ok(text_field.get_value().to_string())
-        } else {
-            Err("2FA cancelled".to_string())
-        };
-        dialog.destroy();
-        result
     }
 }
 
@@ -485,14 +442,11 @@ pub fn run_login_flow(
     email: String,
     password: String,
 ) -> Result<Account, String> {
-    let anisette_config =
-        AnisetteConfiguration::default().set_configuration_path(PathBuf::from(env::temp_dir()));
+    let anisette_config = AnisetteConfiguration::default()
+        .set_configuration_path(PathBuf::from(env::temp_dir()));
 
-    let rt = match Builder::new_current_thread().enable_all().build() {
-        Ok(rt) => rt,
-        Err(e) => return Err(format!("Failed to create Tokio runtime: {}", e)),
-    };
-
+    let rt = Builder::new_current_thread().enable_all().build().unwrap();
+    
     let (code_tx, code_rx) = std::sync::mpsc::channel::<Result<String, String>>();
 
     let account_result = rt.block_on(Account::login(
