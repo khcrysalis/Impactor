@@ -35,11 +35,16 @@ pub struct PlumeFrame {
     pub account_dialog: AccountDialog,
 }
 
+#[cfg(target_os = "linux")]
+const WINDOW_SIZE: (i32, i32) = (700, 660);
+#[cfg(not(target_os = "linux"))]
+const WINDOW_SIZE: (i32, i32) = (530, 410);
+
 impl PlumeFrame {
     pub fn new() -> Self {
         let frame = Frame::builder()
             .with_title(APP_NAME)
-            .with_size(Size::new(530, 410))
+            .with_size(Size::new(WINDOW_SIZE.0, WINDOW_SIZE.1))
             .with_style(FrameStyle::CloseBox | FrameStyle::MinimizeBox | FrameStyle::Caption | FrameStyle::SystemMenu)
             .build();
 
