@@ -80,7 +80,7 @@ async fn main() {
             let signer = Signer::new(Some(signing_key), signer_settings, provisioning_files);
 
             let target_path = args.bundle.clone();
-            if let Err(e) = signer.sign(target_path.clone()) {
+            if let Err(e) = signer.sign_path(target_path.clone()) {
                 eprintln!("--x failed to sign: {e}");
                 exit(1);
             }

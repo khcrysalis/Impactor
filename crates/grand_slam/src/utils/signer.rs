@@ -28,8 +28,12 @@ impl Signer {
         }
     }
 
-    pub fn sign(&self, path: PathBuf) -> Result<(), Error> {
-        let bundle = Bundle::new(path.clone())?;
+    pub fn sign_path(&self, path: PathBuf) -> Result<(), Error> {
+        let bundle = Bundle::new(path)?;
+        self.sign_bundle(&bundle)
+    }
+
+    pub fn sign_bundle(&self, bundle: &Bundle) -> Result<(), Error> {
         let bundles = bundle.collect_bundles_sorted()?;
         
         if let Some(new_name) = self.settings.custom_name.as_ref() {
@@ -88,6 +92,8 @@ impl Signer {
                     )?;
                 }
             }
+            
+            println!("Signing {}...", bundle.dir().to_string_lossy());
 
             UnifiedSigner::new(settings).sign_path_in_place(bundle.dir())?;
         }
@@ -109,6 +115,7 @@ impl Signer {
         }
         settings.set_for_notarization(false);
         settings.set_shallow(false);
+        settings.set_team_id_from_signing_certificate();
         Ok(settings)
     }
 }

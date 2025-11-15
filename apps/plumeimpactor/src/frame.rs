@@ -4,10 +4,10 @@ use std::rc::Rc;
 use std::{env, fs, ptr, thread};
 
 use grand_slam::certificate::CertificateIdentity;
-use grand_slam::{AnisetteConfiguration, BundleType, MachO, MobileProvision};
+use grand_slam::{AnisetteConfiguration, BundleType, Certificate, MachO, MobileProvision, Signer};
 use grand_slam::auth::Account;
 use grand_slam::developer::DeveloperSession;
-use grand_slam::utils::PlistInfoTrait;
+use grand_slam::utils::{PlistInfoTrait, SignerSettings};
 use idevice::IdeviceService;
 use idevice::lockdown::LockdownClient;
 use wxdragon::prelude::*;
@@ -338,13 +338,15 @@ impl PlumeFrame {
                         .await
                         .map_err(|e| format!("Failed to list teams: {}", e))?;
                     
-                    session.qh_ensure_device(
+                    let device = session.qh_ensure_device(
                         &teams.teams.get(0).ok_or("No teams available for the Apple ID account.")?.team_id,
                         &device.name,
                         &device.uuid,
                     )
                     .await
                     .map_err(|e| format!("Failed to ensure device is registered: {}", e))?;
+                
+                    println!("Device ensured: {:#?}", device);
                 
                     sender_clone.send(PlumeFrameMessage::InstallProgress(20, Some("Extracting package...".to_string()))).ok();
                     
@@ -376,6 +378,16 @@ impl PlumeFrame {
                     }
                     
                     sender_clone.send(PlumeFrameMessage::InstallProgress(30, Some(format!("Registering {}...", bundle.get_name().unwrap_or_default())))).ok();
+                    
+                    let identity = CertificateIdentity::new(
+                        &PathBuf::from("/tmp"),
+                        &session,
+                        "PLUME".to_string(),
+                        "AltStore".to_string(),
+                        team_id
+                    )
+                    .await
+                    .map_err(|e| format!("Failed to create certificate identity: {}", e))?;
                     
                     let mut provisionings: Vec<MobileProvision> = Vec::new();
                     
@@ -444,20 +456,33 @@ impl PlumeFrame {
                         
                         provisionings.push(mobile_provision);
                     }
+
+                    sender_clone.send(PlumeFrameMessage::InstallProgress(50, Some(format!("Signing {}...", bundle.get_name().unwrap_or_default())))).ok();
+
+                    let certificate_paths = vec![
+                        identity.get_certificate_file_path().to_path_buf(),
+                        identity.get_private_key_file_path().to_path_buf(),
+                    ];
                     
-                    sender_clone.send(PlumeFrameMessage::InstallProgress(40, Some("Obtaining Certificates...".to_string()))).ok();
+                    let certificate = Certificate::new(Some(certificate_paths))
+                        .map_err(|e| format!("Failed to create Certificate: {}", e))?;
                     
-                    let cert = CertificateIdentity::new(
-                        &PathBuf::from("/tmp"),
-                        &session,
-                        "PLUME".to_string(),
-                        "AltStore".to_string(),
-                        team_id
-                    )
-                    .await
-                    .map_err(|e| format!("Failed to create certificate identity: {}", e))?;
-                
-                    println!("Using cert: {}", cert.get_serial_number().unwrap_or_default());
+                    let signer_settings = SignerSettings {
+                        ..Default::default()
+                    };
+                    
+                    let signer = Signer::new(
+                        Some(certificate),
+                        signer_settings,
+                        provisionings,
+                    );
+
+                    signer.sign_bundle(&bundle)
+                        .map_err(|e| format!("Failed to sign bundle: {}", e))?;
+
+                    sender_clone.send(PlumeFrameMessage::InstallProgress(70, Some("Installing to device...".to_string()))).ok();
+                    
+                    
 
                     Ok::<_, String>(())
                 });

@@ -101,8 +101,8 @@ impl PlistInfoTrait for Package {
     }
 }
 
-impl Drop for Package {
-    fn drop(&mut self) {
-        fs::remove_dir_all(&self.stage_dir).ok();
-    }
-}
+// impl Drop for Package {
+//     fn drop(&mut self) {
+//         fs::remove_dir_all(&self.stage_dir).ok();
+//     }
+// }

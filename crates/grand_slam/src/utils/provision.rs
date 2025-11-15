@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use plist::{Dictionary, Value};
+use uuid::Uuid;
 use crate::Error;
 
 use super::MachO;
@@ -32,12 +33,18 @@ impl MobileProvision {
         })
     }
     
+    // TODO: make this better....
     pub fn load_from_bytes(data: &[u8]) -> Result<Self, Error> {
         let provisioning_plist = Self::extract_plist_from_file(data)?;
         let entitlements = Self::extract_entitlements(&provisioning_plist)?;
+        
+        let temp_file_path = std::env::temp_dir().join(format!("plume_provision_{:08}", Uuid::new_v4().to_string().to_uppercase()));
+        fs::create_dir_all(&temp_file_path)?;
+        let provision_file = temp_file_path.join(format!("{}.mobileprovision", Uuid::new_v4().to_string().to_uppercase()));
+        fs::write(&provision_file, data)?;
 
         Ok(Self {
-            provision_file: PathBuf::new(),
+            provision_file,
             provisioning_plist,
             entitlements,
         })
