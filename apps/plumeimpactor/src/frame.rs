@@ -445,7 +445,7 @@ impl PlumeFrame {
                         provisionings.push(mobile_provision);
                     }
                     
-                    sender_clone.send(PlumeFrameMessage::InstallProgress(40, Some("Downloading Certificates...".to_string()))).ok();
+                    sender_clone.send(PlumeFrameMessage::InstallProgress(40, Some("Obtaining Certificates...".to_string()))).ok();
                     
                     let cert = CertificateIdentity::new(
                         &PathBuf::from("/tmp"),
