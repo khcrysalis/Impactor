@@ -320,10 +320,18 @@ impl PlumeFrame {
                     // TODO: Handle multiple teams properly
                     let teams = session.qh_list_teams()
                         .await
-                        .map_err(|e| format!("Failed to list teams: {}", e))?;
+                        .map_err(|e| format!("Failed to list teams: {}", e))?.teams;
+                    
+                    if teams.len() != 1 {
+                        return Err("Multiple teams detected for the Apple ID account.".to_string());
+                    }
+                    
+                    let team_id = &teams.get(0)
+                        .ok_or("No teams available for the Apple ID account.")?
+                        .team_id;
                     
                     let device = session.qh_ensure_device(
-                        &teams.teams.get(0).ok_or("No teams available for the Apple ID account.")?.team_id,
+                        team_id,
                         &device.name,
                         &device.uuid,
                     )
@@ -338,10 +346,6 @@ impl PlumeFrame {
                         .map_err(|e| format!("Failed to get package bundle: {}", e))?;
                     let bundles = bundle.collect_bundles_sorted()
                         .map_err(|e| format!("Failed to collect bundles: {}", e))?;
-                    
-                    let team_id = &teams.teams.get(0)
-                        .ok_or("No teams available for the Apple ID account.")?
-                        .team_id;
                     
                     let bundle_identifier = bundle.get_bundle_identifier()
                         .ok_or("Failed to get bundle identifier from package.")?;
@@ -488,7 +492,8 @@ impl PlumeFrame {
                 });
 
                 if let Err(e) = install_result {
-                    sender_clone.send(PlumeFrameMessage::InstallProgress(99, Some(format!("{}", e)))).ok();
+                    sender_clone.send(PlumeFrameMessage::InstallProgress(100, None)).ok();
+                    sender_clone.send(PlumeFrameMessage::Error(format!("{}", e))).ok();
                     return;
                 }
             });
