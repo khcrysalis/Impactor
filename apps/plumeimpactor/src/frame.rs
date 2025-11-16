@@ -10,6 +10,7 @@ use grand_slam::developer::DeveloperSession;
 use grand_slam::utils::{PlistInfoTrait, SignerSettings};
 use idevice::IdeviceService;
 use idevice::lockdown::LockdownClient;
+use idevice::utils::installation;
 use wxdragon::prelude::*;
 
 use futures::StreamExt;
@@ -275,16 +276,6 @@ impl PlumeFrame {
                 sender.send(PlumeFrameMessage::PackageDeselected).ok();
             }
         });
-
-        
-        
-        
-        
-        
-        
-        
-        
-        
         
         let message_handler_for_install = message_handler.clone();
         self.install_page.set_install_handler({
@@ -331,7 +322,7 @@ impl PlumeFrame {
                         .find(|d| d.device_id.to_string() == device_id)
                         .ok_or_else(|| format!("Device ID {device_id} not found"))?;
 
-                    let device = Device::new(usbmuxd_device).await;
+                    let device = Device::new(usbmuxd_device.clone()).await;
                     
                     // TODO: Handle multiple teams properly
                     let teams = session.qh_list_teams()
@@ -480,9 +471,25 @@ impl PlumeFrame {
                     signer.sign_bundle(&bundle)
                         .map_err(|e| format!("Failed to sign bundle: {}", e))?;
 
-                    sender_clone.send(PlumeFrameMessage::InstallProgress(70, Some("Installing to device...".to_string()))).ok();
+                    let provider = usbmuxd_device.to_provider(UsbmuxdAddr::from_env_var().unwrap(), "baller");
+
+                    let bundle_name = bundle.get_name().unwrap_or_default();
+                    let callback = {
+                        let sender_clone = sender_clone.clone();
+                        move |(progress, _): (u64, ())| {
+                            let sender = sender_clone.clone();
+                            let bundle_name = bundle_name.clone();
+                            async move {
+                                sender.send(PlumeFrameMessage::InstallProgress(progress as i32, Some(format!("Installing {}... {}%", bundle_name, progress)))).ok();
+                            }
+                        }
+                    };
                     
+                    let state = ();
                     
+                    installation::install_package_with_callback(&provider, bundle.dir(), None, callback, state)
+                        .await
+                        .map_err(|e| format!("Failed to install package: {}", e))?;
 
                     Ok::<_, String>(())
                 });
@@ -494,17 +501,7 @@ impl PlumeFrame {
             });
             }
         });
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+
     }
 
     
