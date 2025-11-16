@@ -1,15 +1,13 @@
 use std::cell::RefCell;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
-use std::{env, fs, ptr, thread};
+use std::{env, ptr, thread};
 
 use grand_slam::certificate::CertificateIdentity;
 use grand_slam::{AnisetteConfiguration, BundleType, Certificate, MachO, MobileProvision, Signer};
 use grand_slam::auth::Account;
 use grand_slam::developer::DeveloperSession;
 use grand_slam::utils::{PlistInfoTrait, SignerSettings};
-use idevice::IdeviceService;
-use idevice::lockdown::LockdownClient;
 use idevice::utils::installation;
 use wxdragon::prelude::*;
 
@@ -22,7 +20,7 @@ use crate::APP_NAME;
 use crate::handlers::{PlumeFrameMessage, PlumeFrameMessageHandler};
 use crate::keychain::AccountCredentials;
 use crate::pages::login::{AccountDialog, LoginDialog};
-use crate::pages::{DefaultPage, InstallPage, create_account_dialog, create_default_page, create_install_page, create_login_dialog};
+use crate::pages::{DefaultPage, InstallPage, create_account_dialog, create_default_page, create_install_page, create_login_dialog, WINDOW_SIZE};
 use crate::utils::{Device, Package};
 
 pub struct PlumeFrame {
@@ -36,11 +34,6 @@ pub struct PlumeFrame {
     pub login_dialog: LoginDialog,
     pub account_dialog: AccountDialog,
 }
-
-#[cfg(target_os = "linux")]
-const WINDOW_SIZE: (i32, i32) = (700, 660);
-#[cfg(not(target_os = "linux"))]
-const WINDOW_SIZE: (i32, i32) = (530, 410);
 
 impl PlumeFrame {
     pub fn new() -> Self {

@@ -8,7 +8,7 @@ use crate::{Error, developer::v1::capabilities::Capability};
 
 /// Represents a Mach-O file and its entitlements.
 pub struct MachO {
-    macho_file: MachFile<'static>,
+    _macho_file: MachFile<'static>,
     pub entitlements: Option<Dictionary>,
 }
 
@@ -21,7 +21,7 @@ impl MachO {
         let entitlements = Self::extract_entitlements(&macho_file)?;
 
         Ok(MachO {
-            macho_file,
+            _macho_file: macho_file,
             entitlements,
         })
     }
