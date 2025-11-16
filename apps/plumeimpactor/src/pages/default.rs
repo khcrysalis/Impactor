@@ -3,7 +3,7 @@ use wxdragon::prelude::*;
 #[cfg(not(target_os = "linux"))]
 const WELCOME_TEXT: &str = "Drop your .ipa here";
 #[cfg(target_os = "linux")]
-const WELCOME_TEXT: &str = "Press '+' and select an .ipa to get started";
+const WELCOME_TEXT: &str = "Press 'import' and select an .ipa to get started";
 
 #[derive(Clone)]
 pub struct DefaultPage {

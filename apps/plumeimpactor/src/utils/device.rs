@@ -6,7 +6,7 @@ use idevice::IdeviceService;
 
 use crate::Error;
 
-pub const CONNECTION_LABEL: &str = "plume";
+pub const CONNECTION_LABEL: &str = "plume_info";
 
 macro_rules! get_dict_string {
     ($dict:expr, $key:expr) => {

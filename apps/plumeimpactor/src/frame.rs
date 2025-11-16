@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::{env, ptr, thread};
+use std::{ptr, thread};
 
 use grand_slam::certificate::CertificateIdentity;
 use grand_slam::{AnisetteConfiguration, BundleType, Certificate, MachO, MobileProvision, Signer};
@@ -16,7 +16,7 @@ use idevice::usbmuxd::{UsbmuxdAddr, UsbmuxdConnection, UsbmuxdListenEvent};
 use tokio::runtime::Builder;
 use tokio::sync::mpsc;
 
-use crate::APP_NAME;
+use crate::{APP_NAME, get_data_path};
 use crate::handlers::{PlumeFrameMessage, PlumeFrameMessageHandler};
 use crate::keychain::AccountCredentials;
 use crate::pages::login::{AccountDialog, LoginDialog};
@@ -48,9 +48,9 @@ impl PlumeFrame {
         let top_panel = Panel::builder(&frame).build();
         let top_row = BoxSizer::builder(Orientation::Horizontal).build();
 
-        let add_ipa_button = Button::builder(&top_panel).with_label("+").build();
+        let add_ipa_button = Button::builder(&top_panel).with_label("Import").build();
         let device_picker = Choice::builder(&top_panel).build();
-        let apple_id_button = Button::builder(&top_panel).with_label("Account").build();
+        let apple_id_button = Button::builder(&top_panel).with_label("Settings").build();
 
         top_row.add(&add_ipa_button, 0, SizerFlag::All, 0);
         top_row.add_spacer(12);
@@ -364,7 +364,7 @@ impl PlumeFrame {
                     sender_clone.send(PlumeFrameMessage::InstallProgress(30, Some(format!("Registering {}...", bundle.get_name().unwrap_or_default())))).ok();
                     
                     let identity = CertificateIdentity::new(
-                        &PathBuf::from("/tmp"),
+                        &get_data_path(),
                         &session,
                         "PLUME".to_string(),
                         "AltStore".to_string(),
@@ -585,7 +585,7 @@ pub fn run_login_flow(
     password: String,
 ) -> Result<Account, String> {
     let anisette_config = AnisetteConfiguration::default()
-        .set_configuration_path(PathBuf::from(env::temp_dir()));
+        .set_configuration_path(get_data_path());
 
     let rt = Builder::new_current_thread().enable_all().build().unwrap();
     

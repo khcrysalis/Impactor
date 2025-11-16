@@ -13,7 +13,7 @@ pub struct LoginDialog {
 
 pub fn create_login_dialog(parent: &Window) -> LoginDialog {
     let dialog = Dialog::builder(parent, "Sign in with your Apple ID")
-        .with_style(DialogStyle::DefaultDialogStyle)
+        .with_style(DialogStyle::SystemMenu)
         .with_size(DIALOG_SIZE.0, DIALOG_SIZE.1)
         .build();
 
@@ -25,28 +25,18 @@ pub fn create_login_dialog(parent: &Window) -> LoginDialog {
         .with_label("       Email:")
         .build();
     let email_field = TextCtrl::builder(&dialog).build();
-    email_row.add(
-        &email_label,
-        0,
-        SizerFlag::AlignCenterVertical | SizerFlag::All,
-        8,
-    );
-    email_row.add(&email_field, 1, SizerFlag::Expand | SizerFlag::All, 12);
-    sizer.add_sizer(&email_row, 0, SizerFlag::Expand | SizerFlag::All, 0);
+    email_row.add(&email_label, 0, SizerFlag::AlignCenterVertical | SizerFlag::All, 4);
+    email_row.add(&email_field, 1, SizerFlag::Expand | SizerFlag::Right, 8);
+    sizer.add_sizer(&email_row, 0, SizerFlag::Expand | SizerFlag::All, 4);
 
     let password_row = BoxSizer::builder(Orientation::Horizontal).build();
     let password_label = StaticText::builder(&dialog).with_label("Password:").build();
     let password_field = TextCtrl::builder(&dialog)
         .with_style(TextCtrlStyle::Password)
         .build();
-    password_row.add(
-        &password_label,
-        0,
-        SizerFlag::AlignCenterVertical | SizerFlag::All,
-        8,
-    );
-    password_row.add(&password_field, 1, SizerFlag::Expand | SizerFlag::All, 12);
-    sizer.add_sizer(&password_row, 0, SizerFlag::Expand | SizerFlag::All, 0);
+    password_row.add(&password_label, 0, SizerFlag::AlignCenterVertical | SizerFlag::All, 4);
+    password_row.add(&password_field, 1, SizerFlag::Expand | SizerFlag::Right, 8);
+    sizer.add_sizer(&password_row, 0, SizerFlag::Expand | SizerFlag::All, 4);
 
     let button_sizer = BoxSizer::builder(Orientation::Horizontal).build();
     let cancel_button = Button::builder(&dialog).with_label("Cancel").build();
@@ -112,24 +102,32 @@ pub struct AccountDialog {
 
 pub fn create_account_dialog(parent: &Window) -> AccountDialog {
     let dialog = Dialog::builder(parent, "Account")
-        .with_style(DialogStyle::DefaultDialogStyle)
+        .with_style(DialogStyle::SystemMenu)
         .with_size(DIALOG_SIZE.0, DIALOG_SIZE.1)
         .build();
 
     let sizer = BoxSizer::builder(Orientation::Vertical).build();
     sizer.add_spacer(12);
 
-    let label = StaticText::builder(&dialog)
-        .with_label("")
-        .build();
-    sizer.add(&label, 0, SizerFlag::All, 12);
+    let label = StaticText::builder(&dialog).with_label("").build();
+    sizer.add(&label, 0, SizerFlag::Expand | SizerFlag::Left | SizerFlag::Right, 12);
 
     let buttons = BoxSizer::builder(Orientation::Horizontal).build();
+    
+    let close_button = Button::builder(&dialog).with_label("Close").build();
+    buttons.add(&close_button, 0, SizerFlag::All, 8);
     let logout_button = Button::builder(&dialog).with_label("Log out").build();
+    
     buttons.add(&logout_button, 0, SizerFlag::All, 8);
+    
     sizer.add_sizer(&buttons, 0, SizerFlag::AlignRight | SizerFlag::All, 8);
 
     dialog.set_sizer(sizer, true);
+    
+    close_button.on_click({
+        let dialog = dialog.clone();
+        move |_| dialog.end_modal(ID_OK as i32)
+    });
 
     AccountDialog {
         dialog,
@@ -160,7 +158,7 @@ impl AccountDialog {
 impl PlumeFrame {
     pub fn create_single_field_dialog(&self, title: &str, label: &str) -> Result<String, String> {
         let dialog = Dialog::builder(&self.frame, title)
-            .with_style(DialogStyle::DefaultDialogStyle)
+            .with_style(DialogStyle::SystemMenu)
             .with_size(DIALOG_SIZE.0, DIALOG_SIZE.1)
             .build();
 
