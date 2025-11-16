@@ -13,6 +13,6 @@ pub const WINDOW_SIZE: (i32, i32) = (700, 660);
 pub const WINDOW_SIZE: (i32, i32) = (530, 410);
 
 #[cfg(target_os = "linux")]
-pub const DIALOG_SIZE: (i32, i32) = (500, 300);
+pub const DIALOG_SIZE: (i32, i32) = (500, 500);
 #[cfg(not(target_os = "linux"))]
-pub const DIALOG_SIZE: (i32, i32) = (400, 200);
+pub const DIALOG_SIZE: (i32, i32) = (400, 300);
