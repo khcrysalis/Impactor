@@ -13,7 +13,7 @@ pub struct LoginDialog {
 
 pub fn create_login_dialog(parent: &Window) -> LoginDialog {
     let dialog = Dialog::builder(parent, "Sign in with your Apple ID")
-        .with_style(DialogStyle::SystemMenu)
+        .with_style(DialogStyle::SystemMenu | DialogStyle::Caption)
         .with_size(DIALOG_SIZE.0, DIALOG_SIZE.1)
         .build();
 
@@ -102,7 +102,7 @@ pub struct AccountDialog {
 
 pub fn create_account_dialog(parent: &Window) -> AccountDialog {
     let dialog = Dialog::builder(parent, "Account")
-        .with_style(DialogStyle::SystemMenu)
+        .with_style(DialogStyle::SystemMenu | DialogStyle::Caption)
         .with_size(DIALOG_SIZE.0, DIALOG_SIZE.1)
         .build();
 
@@ -158,7 +158,7 @@ impl AccountDialog {
 impl PlumeFrame {
     pub fn create_single_field_dialog(&self, title: &str, label: &str) -> Result<String, String> {
         let dialog = Dialog::builder(&self.frame, title)
-            .with_style(DialogStyle::SystemMenu)
+            .with_style(DialogStyle::SystemMenu | DialogStyle::Caption)
             .with_size(DIALOG_SIZE.0, DIALOG_SIZE.1)
             .build();
 
