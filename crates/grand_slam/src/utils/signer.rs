@@ -59,7 +59,7 @@ impl Signer {
 
                 if let Some(bundle_executable) = bundle.get_executable() {
                     let binary_path = bundle.dir().join(bundle_executable);
-                    prov.merge_entitlements(binary_path)?;
+                    prov.merge_entitlements(binary_path).ok(); // if it fails we can ignore 
                 }
 
                 if self.settings.should_embed_provisioning {

@@ -189,6 +189,10 @@ impl CertificateIdentity {
                 Err(e) => {
                     if let Error::DeveloperSession(code, _) = &e {
                         if *code == 7460 {
+                            // TODO: this isn't really the ideal way to revoke certificiates
+                            // trying to match the machine id with another existing id
+                            // because if they dont exist and still taking up slots, it would
+                            // most likely error with too many certificates
                             let certs = dev_session
                                 .qh_list_certs(team)
                                 .await?

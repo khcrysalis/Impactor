@@ -199,7 +199,7 @@ impl PlumeFrameMessageHandler {
                 if let Some(dialog) = &mut self.installation_progress_dialog {
                     dialog.update(progress, message_opt.as_deref());
 
-                    if progress >= 100 {
+                    if progress >= 90 {
                         self.installation_progress_dialog = None;
                     }
                 }
