@@ -18,6 +18,12 @@ pub const APP_NAME: &str = concat!(env!("CARGO_PKG_NAME"), " – Version ", env!
 async fn main() {
     _ = rustls::crypto::ring::default_provider().install_default().unwrap();
 
+    // windows dark mode baller
+    #[cfg(target_os = "windows")]
+    {
+        wxdragon::app::set_appearance(wxdragon::Appearance::System);
+    }
+
     let _ = wxdragon::main(|_| {
         frame::PlumeFrame::new().show();
     });
