@@ -63,7 +63,6 @@ jobs:
 
       - name: Build Dependencies 
         run: |
-          security find-certificate -a -c "${{ secrets.DEV_ID_IDENTITY_NAME }}" 
           cargo install patch-crate
           cargo fetch --locked || true
           cargo patch-crate --force
@@ -79,6 +78,7 @@ jobs:
       - name: Build & Bundle (macOS)
         if: runner.os == 'macOS'
         run: |
+          certtool y | grep Developer \ID 
           cargo bundle --bin plumeimpactor --package plumeimpactor --release --format osx
           cp -R target/release/bundle/osx/plumeimpactor.app build/dmg
           codesign --deep --force --options runtime --sign "${{ secrets.DEV_ID_IDENTITY_NAME }}" build/dmg/plumeimpactor.app
