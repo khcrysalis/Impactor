@@ -81,11 +81,12 @@ jobs:
           cargo patch-crate --force
           cargo install cargo-bundle
           mkdir -p build/out
+          mkdir -p build/dmg
           
       - name: Build & Bundle (macOS)
         run: |
           cargo bundle --bin plumeimpactor --package plumeimpactor --release --format osx
-          cp -R target/release/bundle/osx/plumeimpactor.app build/dmg
+          cp -R target/release/bundle/osx/plumeimpactor.app build/dmg/plumeimpactor.app
           codesign --deep --force --options runtime --sign "${{ secrets.DEV_ID_IDENTITY_NAME }}" build/dmg/plumeimpactor.app
           ln -s /Applications build/dmg/Applications
           hdiutil create -volname plumeimpactor -srcfolder build/dmg -ov -format UDZO build/out/PlumeImpactor.dmg
@@ -128,11 +129,12 @@ jobs:
           cargo patch-crate --force
           cargo install cargo-bundle
           mkdir -p build/out
+          mkdir -p build/dmg
           
       - name: Build & Bundle (macOS Intel)
         run: |
           cargo bundle --bin plumeimpactor --package plumeimpactor --release --format osx
-          cp -R target/release/bundle/osx/plumeimpactor.app build/dmg
+          cp -R target/release/bundle/osx/plumeimpactor.app build/dmg/plumeimpactor.app
           codesign --deep --force --options runtime --sign "${{ secrets.DEV_ID_IDENTITY_NAME }}" build/dmg/plumeimpactor.app
           ln -s /Applications build/dmg/Applications
           hdiutil create -volname plumeimpactor -srcfolder build/dmg -ov -format UDZO build/out/PlumeImpactor.dmg
