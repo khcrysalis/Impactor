@@ -47,8 +47,8 @@ jobs:
           sudo apt-get install libgtk-3-dev libpng-dev libjpeg-dev libgl1-mesa-dev libglu1-mesa-dev libxkbcommon-dev libexpat1-dev libtiff-dev
 
       - name: Setup macOS Certificates
-        uses: apple-actions/import-codesign-certs@v5
         if: runner.os == 'macOS'
+        uses: apple-actions/import-codesign-certs@v5
         with:
           p12-file-base64: ${{ secrets.DEV_ID_P12_BASE64 }}
           p12-password: ${{ secrets.DEV_ID_P12_PASSWORD }}
@@ -63,6 +63,7 @@ jobs:
 
       - name: Build Dependencies 
         run: |
+          security find-certificate -a -c "${{ secrets.DEV_ID_IDENTITY_NAME }}" 
           cargo install patch-crate
           cargo fetch --locked || true
           cargo patch-crate --force
