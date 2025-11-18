@@ -210,6 +210,7 @@ jobs:
 
       - name: Create DMG
         run: |
+          mkdir -p build/out
           ln -s /Applications build/dmg/Applications
           hdiutil create -volname ${{ env.BUNDLE_NAME }} -srcfolder build/dmg -ov -format UDZO build/out/${{ env.BUNDLE_NAME }}.dmg
 
