@@ -199,6 +199,7 @@ jobs:
         run: |
           mkdir -p build/dmg
           cp -R package/macos/${{ env.BUNDLE_NAME }}.app build/dmg/${{ env.BUNDLE_NAME }}.app
+          mkdir -p build/dmg/${{ env.BUNDLE_NAME }}.app/Contents/MacOS
           mv build/universal/${{ env.BINARY_NAME }} build/dmg/${{ env.BUNDLE_NAME }}.app/Contents/MacOS/${{ env.BINARY_NAME }}
 
       - name: Codesign
