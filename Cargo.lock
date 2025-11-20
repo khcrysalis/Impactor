@@ -1511,6 +1511,7 @@ dependencies = [
  "hex",
  "hmac",
  "omnisette",
+ "p12",
  "pbkdf2",
  "pem 3.0.6",
  "pem-rfc7468",

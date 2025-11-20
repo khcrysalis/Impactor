@@ -1,7 +1,8 @@
 use std::cell::RefCell;
+use std::fmt::write;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::{ptr, thread};
+use std::{fs, ptr, thread};
 
 use grand_slam::{AnisetteConfiguration, BundleType, CertificateIdentity, MachO, MobileProvision, Signer};
 use grand_slam::auth::Account;
@@ -364,7 +365,7 @@ impl PlumeFrame {
                             .team_id;
 
                         let cert_identity: CertificateIdentity = if signer_settings.export_ipa {
-                            CertificateIdentity { cert: None, key: None }
+                            CertificateIdentity { cert: None, key: None, machine_id: None, p12_data: None, serial_number: None }
                         } else {
                             let cert_identity = CertificateIdentity::new_with_session(
                                 &session,
@@ -437,6 +438,17 @@ impl PlumeFrame {
                                 ).map_err(|e| format!("Failed to set matching identifier: {}", e))?;
                             }
                         }
+
+                        if signer_settings.should_embed_p12 {
+                            if let Some(p12_data) = &cert_identity.p12_data {
+                                if let Some(serial_number) = &cert_identity.serial_number {
+                                    bundle.set_info_plist_key("ALTCertificateID", &**serial_number)
+                                        .map_err(|e| format!("Failed to set cert serial: {}", e))?;
+                                    fs::write(bundle.dir().join("ALTCertificate.p12"), p12_data)
+                                        .map_err(|e| format!("Failed to write p12: {}", e))?;
+                                }
+                            }
+                        }
                         
                         sender_clone.send(PlumeFrameMessage::InstallProgress(30, Some(format!("Registering {}...", bundle.get_name().unwrap_or_default())))).ok();
                         
@@ -506,7 +518,7 @@ impl PlumeFrame {
 
                                 let profile_data = profiles.provisioning_profile.encoded_profile;
                                 
-                                let mobile_provision = MobileProvision::load_from_bytes(profile_data.as_ref())
+                                let mobile_provision = MobileProvision::load_with_bytes(profile_data.as_ref().to_vec())
                                     .map_err(|e| format!("Failed to load mobile provision: {}", e))?;
                                 
                                 provisionings.push(mobile_provision);

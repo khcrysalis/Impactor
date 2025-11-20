@@ -2,56 +2,45 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use plist::{Dictionary, Value};
-use uuid::Uuid;
 use crate::Error;
 
 use super::MachO;
 
 #[derive(Clone)]
 pub struct MobileProvision {
-    provision_file: PathBuf,
+    pub provision_data: Vec<u8>,
     provisioning_plist: Value,
     entitlements: Dictionary,
 }
 
 impl MobileProvision {
-    pub fn load<P: AsRef<Path>>(provision_path: P) -> Result<Self, Error> {
+    pub fn load_with_path<P: AsRef<Path>>(provision_path: P) -> Result<Self, Error> {
         let path = provision_path.as_ref();
         
         if !path.exists() {
             return Err(Error::ProvisioningEntitlementsUnknown);
         }
 
-        let profile_data = fs::read(path)?;
-        let provisioning_plist = Self::extract_plist_from_file(&profile_data)?;
+        let provision_data = fs::read(path)?;
+        let provisioning_plist = Self::extract_plist_from_file(&provision_data)?;
         let entitlements = Self::extract_entitlements(&provisioning_plist)?;
         
         Ok(Self {
-            provision_file: path.to_path_buf(),
+            provision_data,
             provisioning_plist,
             entitlements,
         })
     }
     
-    // TODO: make this better....
-    pub fn load_from_bytes(data: &[u8]) -> Result<Self, Error> {
-        let provisioning_plist = Self::extract_plist_from_file(data)?;
+    pub fn load_with_bytes(provision_data: Vec<u8>) -> Result<Self, Error> {
+        let provisioning_plist = Self::extract_plist_from_file(&provision_data)?;
         let entitlements = Self::extract_entitlements(&provisioning_plist)?;
-        
-        let temp_file_path = std::env::temp_dir().join(format!("plume_provision_{:08}", Uuid::new_v4().to_string().to_uppercase()));
-        fs::create_dir_all(&temp_file_path)?;
-        let provision_file = temp_file_path.join(format!("{}.mobileprovision", Uuid::new_v4().to_string().to_uppercase()));
-        fs::write(&provision_file, data)?;
 
         Ok(Self {
-            provision_file,
+            provision_data,
             provisioning_plist,
             entitlements,
         })
-    }
-
-    pub fn file_path(&self) -> &Path {
-        &self.provision_file
     }
 
     pub fn entitlements(&self) -> &Dictionary {

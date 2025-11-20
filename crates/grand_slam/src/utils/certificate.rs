@@ -7,12 +7,16 @@ use rand::rngs::OsRng;
 use rcgen::{DnType, KeyPair, PKCS_RSA_SHA256};
 use rsa::{RsaPrivateKey, pkcs1::EncodeRsaPublicKey, pkcs8::{DecodePrivateKey, EncodePrivateKey}};
 use x509_certificate::{CapturedX509Certificate, X509Certificate};
+use p12::*;
 
 use crate::{Error, developer::{DeveloperSession, qh::certs::Cert}};
 
 pub struct CertificateIdentity {
     pub cert: Option<CapturedX509Certificate>,
     pub key: Option<Box<dyn PrivateKey>>,
+    pub machine_id: Option<String>,
+    pub serial_number: Option<String>,
+    pub p12_data: Option<Vec<u8>>
 }
 
 impl CertificateIdentity {
@@ -20,7 +24,10 @@ impl CertificateIdentity {
     pub async fn new_with_paths(paths: Option<Vec<PathBuf>>) -> Result<Self, Error> {
         let mut cert = Self { 
             cert: None,
-            key: None
+            key: None,
+            machine_id: None,
+            p12_data: None,
+            serial_number: None,
         };
 
         if let Some(paths) = paths {
@@ -43,6 +50,14 @@ impl CertificateIdentity {
 
         let key_path = Self::key_dir(config_path, &team_id)?.join("key.pem");
 
+        let mut cert = Self { 
+            cert: None, 
+            key: None,
+            machine_id: None,
+            p12_data: None,
+            serial_number: None,
+        };
+
         // To same some unnecessary requests, we're going to list our certificates first here
         // then pass them into the necessary functions that need it, if the functions absolutely
         // need to request certificates (after submitting a CSR, for example), they can do so
@@ -57,13 +72,13 @@ impl CertificateIdentity {
             let key_string = fs::read_to_string(&key_path)?;
             let priv_key = RsaPrivateKey::from_pkcs8_pem(&key_string)?;
 
-            if let Some(cert) = Self::find_certificate(certs.clone(), &priv_key, &machine_name).await? {
+            if let Some(cert) = cert.find_certificate(certs.clone(), &priv_key, &machine_name).await? {
                 let cert_pem = encode_string("CERTIFICATE", LineEnding::LF, cert.cert_content.as_ref()).unwrap();
                 let key_pem = priv_key.to_pkcs8_pem(Default::default())?.to_string();
 
                 [cert_pem.into_bytes(), key_pem.into_bytes()]
             } else {
-                let (cert, priv_key) = Self::request_new_certificate(session, team_id, &machine_name, certs).await?;
+                let (cert, priv_key) = cert.request_new_certificate(session, team_id, &machine_name, certs).await?;
                 let cert_pem = encode_string("CERTIFICATE", LineEnding::LF, cert.cert_content.as_ref()).unwrap();
                 let key_pem = priv_key.to_pkcs8_pem(Default::default())?.to_string();
 
@@ -71,7 +86,7 @@ impl CertificateIdentity {
                 [cert_pem.into_bytes(), key_pem.into_bytes()]
             }
         } else {
-            let (cert, priv_key) = Self::request_new_certificate(session, team_id, &machine_name, certs).await?;
+            let (cert, priv_key) = cert.request_new_certificate(session, team_id, &machine_name, certs).await?;
             let cert_pem = encode_string("CERTIFICATE", LineEnding::LF, cert.cert_content.as_ref()).unwrap();
             let key_pem = priv_key.to_pkcs8_pem(Default::default())?.to_string();
 
@@ -79,10 +94,10 @@ impl CertificateIdentity {
             [cert_pem.into_bytes(), key_pem.into_bytes()]
         };
 
-        let mut cert = Self { 
-            cert: None, 
-            key: None 
-        };
+        // TODO: this may be horrendious
+        if let Some(p12_data) = cert.create_pkcs12(&key_pair) {
+            cert.p12_data = Some(p12_data);
+        }
 
         for pem in key_pair {
             cert.resolve_certificate_from_contents(pem)?;
@@ -98,6 +113,24 @@ impl CertificateIdentity {
         fs::create_dir_all(&dir)?;
 
         Ok(dir)
+    }
+
+    fn set_machine_id(&mut self, machine_id: String) {
+        self.machine_id = Some(machine_id);
+    }
+
+    fn set_serial_number(&mut self, serial_number: String) {
+        self.serial_number = Some(serial_number);
+    }
+
+    // TODO: cleanest p12 code of them all
+    pub fn create_pkcs12(&self, data: &[Vec<u8>; 2]) -> Option<Vec<u8>> {
+        let machine_id = self.machine_id.as_ref()?;
+        let cert_der = pem::parse(&data[0]).ok()?.contents().to_vec();
+        let key_der = pem::parse(&data[1]).ok()?.contents().to_vec();
+
+        let p12 = PFX::new(&cert_der, &key_der, None, &machine_id, "PLUME")?;
+        Some(p12.to_der())
     }
 
     // applecodesign-rs needs our contents as strings to sign
@@ -139,6 +172,7 @@ impl CertificateIdentity {
 
 impl CertificateIdentity {
     async fn find_certificate(
+        &mut self,
         certs: Vec<Cert>,
         priv_key: &RsaPrivateKey,
         machine_name: &str,
@@ -153,6 +187,13 @@ impl CertificateIdentity {
             if cert.machine_name.as_deref() == Some(machine_name) {
                 let parsed_cert = X509Certificate::from_der(&cert.cert_content)?;
                 if pub_key_der_obj == parsed_cert.public_key_data().as_ref() {
+                    // We need to save the machine_id for our P12
+                    if let Some(ref machine_id) = cert.machine_id {
+                        self.set_machine_id(machine_id.clone());
+                    }
+
+                    self.set_serial_number(cert.serial_number.clone());
+
                     return Ok(Some(cert));
                 }
             }
@@ -162,6 +203,7 @@ impl CertificateIdentity {
     }
 
     async fn request_new_certificate(
+        &mut self,
         session: &DeveloperSession,
         team_id: &String,
         machine_name: &String,
@@ -232,6 +274,13 @@ impl CertificateIdentity {
                     }
                 }
         }.cert_request;
+
+        // We need to save the machine_id for our P12
+        if let Some(ref machine_id) = cert_id.machine_id {
+            self.set_machine_id(machine_id.clone());
+        }
+
+        self.set_serial_number(cert_id.serial_num.clone());
 
         // We request again, and hope this has our new certificate 
         // ready.... if not then woops... thats too bad isnt it

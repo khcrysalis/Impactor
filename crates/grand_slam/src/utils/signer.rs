@@ -63,7 +63,7 @@ impl Signer {
                 }
 
                 if self.settings.should_embed_provisioning {
-                    fs::copy(prov.file_path(), bundle.dir().join("embedded.mobileprovision"))?;
+                    fs::write(bundle.dir().join("embedded.mobileprovision"), &prov.provision_data)?;
                 }
 
                 if let Ok(ent_xml) = prov.entitlements_as_bytes() {

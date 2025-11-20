@@ -64,7 +64,7 @@ async fn main() {
             });
 
             let provisioning_files = args.provisioning_files.iter()
-                .map(MobileProvision::load)
+                .map(MobileProvision::load_with_path)
                 .collect::<Result<Vec<_>, _>>()
                 .unwrap_or_else(|e| {
                     eprintln!("--x failed to load provisioning profiles: {e}");

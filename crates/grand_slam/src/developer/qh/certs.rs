@@ -80,7 +80,7 @@ pub struct Cert {
     certificate_platform: Option<String>,
     pub cert_type: Option<CertType>,
     pub cert_content: Data,
-    machine_id: Option<String>,
+    pub machine_id: Option<String>,
     pub machine_name: Option<String>,
 }
 
@@ -103,11 +103,11 @@ pub struct Csr {
     certificate_status_code: Integer,
     cert_request_status_code: Integer,
     certificate_type_display_id: String,
-    serial_num: String,
+    pub serial_num: String,
     serial_num_decimal: String,
     type_string: String,
     pub certificate_type: Option<CertType>,
-    machine_id: Option<String>,
+    pub machine_id: Option<String>,
     pub machine_name: Option<String>,
 }
 
