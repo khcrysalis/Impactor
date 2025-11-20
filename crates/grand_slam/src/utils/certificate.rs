@@ -7,7 +7,6 @@ use rand::rngs::OsRng;
 use rcgen::{DnType, KeyPair, PKCS_RSA_SHA256};
 use rsa::{RsaPrivateKey, pkcs1::EncodeRsaPublicKey, pkcs8::{DecodePrivateKey, EncodePrivateKey}};
 use x509_certificate::{CapturedX509Certificate, X509Certificate};
-use p12::*;
 
 use crate::{Error, developer::{DeveloperSession, qh::certs::Cert}};
 
@@ -95,9 +94,9 @@ impl CertificateIdentity {
         };
 
         // TODO: this may be horrendious
-        if let Some(p12_data) = cert.create_pkcs12(&key_pair) {
-            cert.p12_data = Some(p12_data);
-        }
+        // if let Some(p12_data) = cert.create_pkcs12(&key_pair) {
+        //     cert.p12_data = Some(p12_data);
+        // }
 
         for pem in key_pair {
             cert.resolve_certificate_from_contents(pem)?;
@@ -116,22 +115,24 @@ impl CertificateIdentity {
     }
 
     fn set_machine_id(&mut self, machine_id: String) {
+        println!("Setting machine id: {}", machine_id);
         self.machine_id = Some(machine_id);
     }
 
     fn set_serial_number(&mut self, serial_number: String) {
+        println!("Setting serial number: {}", serial_number);
         self.serial_number = Some(serial_number);
     }
 
     // TODO: cleanest p12 code of them all
-    pub fn create_pkcs12(&self, data: &[Vec<u8>; 2]) -> Option<Vec<u8>> {
-        let machine_id = self.machine_id.as_ref()?;
-        let cert_der = pem::parse(&data[0]).ok()?.contents().to_vec();
-        let key_der = pem::parse(&data[1]).ok()?.contents().to_vec();
+    // pub fn create_pkcs12(&self, data: &[Vec<u8>; 2]) -> Option<Vec<u8>> {
+    //     let machine_id = self.machine_id.as_ref()?;
+    //     let cert_der = pem::parse(&data[0]).ok()?.contents().to_vec();
+    //     let key_der = pem::parse(&data[1]).ok()?.contents().to_vec();
 
-        let p12 = PFX::new(&cert_der, &key_der, None, &machine_id, "PLUME")?;
-        Some(p12.to_der())
-    }
+    //     let p12 = p12::PFX::new(&cert_der, &key_der, None, &machine_id, "PLUME")?;
+    //     Some(p12.to_der())
+    // }
 
     // applecodesign-rs needs our contents as strings to sign
     fn resolve_certificate_from_contents(&mut self, contents: Vec<u8>) -> Result<(), Error> {
@@ -188,11 +189,11 @@ impl CertificateIdentity {
                 let parsed_cert = X509Certificate::from_der(&cert.cert_content)?;
                 if pub_key_der_obj == parsed_cert.public_key_data().as_ref() {
                     // We need to save the machine_id for our P12
-                    if let Some(ref machine_id) = cert.machine_id {
-                        self.set_machine_id(machine_id.clone());
-                    }
+                    // if let Some(ref machine_id) = cert.machine_id {
+                    //     self.set_machine_id(machine_id.clone());
+                    // }
 
-                    self.set_serial_number(cert.serial_number.clone());
+                    // self.set_serial_number(cert.serial_number.clone());
 
                     return Ok(Some(cert));
                 }
@@ -276,11 +277,11 @@ impl CertificateIdentity {
         }.cert_request;
 
         // We need to save the machine_id for our P12
-        if let Some(ref machine_id) = cert_id.machine_id {
-            self.set_machine_id(machine_id.clone());
-        }
+        // if let Some(ref machine_id) = cert_id.machine_id {
+        //     self.set_machine_id(machine_id.clone());
+        // }
 
-        self.set_serial_number(cert_id.serial_num.clone());
+        // self.set_serial_number(cert_id.serial_num.clone());
 
         // We request again, and hope this has our new certificate 
         // ready.... if not then woops... thats too bad isnt it

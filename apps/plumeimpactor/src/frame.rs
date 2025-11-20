@@ -439,16 +439,16 @@ impl PlumeFrame {
                             }
                         }
 
-                        if signer_settings.should_embed_p12 {
-                            if let Some(p12_data) = &cert_identity.p12_data {
-                                if let Some(serial_number) = &cert_identity.serial_number {
-                                    bundle.set_info_plist_key("ALTCertificateID", &**serial_number)
-                                        .map_err(|e| format!("Failed to set cert serial: {}", e))?;
-                                    fs::write(bundle.dir().join("ALTCertificate.p12"), p12_data)
-                                        .map_err(|e| format!("Failed to write p12: {}", e))?;
-                                }
-                            }
-                        }
+                        // if signer_settings.should_embed_p12 {
+                        //     if let Some(p12_data) = &cert_identity.p12_data {
+                        //         if let Some(serial_number) = &cert_identity.serial_number {
+                        //             bundle.set_info_plist_key("ALTCertificateID", &**serial_number)
+                        //                 .map_err(|e| format!("Failed to set cert serial: {}", e))?;
+                        //             fs::write(bundle.dir().join("ALTCertificate.p12"), p12_data)
+                        //                 .map_err(|e| format!("Failed to write p12: {}", e))?;
+                        //         }
+                        //     }
+                        // }
                         
                         sender_clone.send(PlumeFrameMessage::InstallProgress(30, Some(format!("Registering {}...", bundle.get_name().unwrap_or_default())))).ok();
                         
