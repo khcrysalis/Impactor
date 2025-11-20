@@ -119,7 +119,7 @@ impl PlumeFrameMessageHandler {
                     return;
                 }
 
-                package.load_into_signer_settings(&mut self.signer_settings).ok();
+                package.load_into_signer_settings(&mut self.signer_settings);
 
                 self.package_selected = Some(package);
                 self.plume_frame.install_page.set_settings(&self.signer_settings, Some(self.package_selected.as_ref().unwrap()));

@@ -3,8 +3,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::{ptr, thread};
 
-use grand_slam::CertificateIdentity;
-use grand_slam::{AnisetteConfiguration, BundleType, MachO, MobileProvision, Signer};
+use grand_slam::{AnisetteConfiguration, BundleType, CertificateIdentity, MachO, MobileProvision, Signer};
 use grand_slam::auth::Account;
 use grand_slam::developer::DeveloperSession;
 use grand_slam::utils::{PlistInfoTrait};

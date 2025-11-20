@@ -13,6 +13,19 @@ authors = ["khcrysalis <s03781614@icloud.com>"]
 license = "MIT"
 repository = "https://github.com/khcrysalis/plumestore"
 
+# We use `opt-level = "s"` as it significantly reduces binary size.
+# We could then use the `#[optimize(speed)]` attribute for spot optimizations.
+# Unfortunately, that attribute currently doesn't work on intrinsics such as memset.
+[profile.release]
+codegen-units = 1           # reduces binary size by ~2%
+debug = "full"              # No one needs an undebuggable release binary
+lto = true                  # reduces binary size by ~14%
+opt-level = "s"             # reduces binary size by ~25%
+panic = "abort"             # reduces binary size by ~50% in combination with -Zbuild-std-features=panic_immediate_abort
+split-debuginfo = "packed"  # generates a separate *.dwp/*.dSYM so the binary can get stripped
+strip = "symbols"           # See split-debuginfo - allows us to drop the size by ~65%
+incremental = true          # Improves re-compile times
+
 [workspace.dependencies]
 tokio = { version = "1.43", features = ["macros", "rt-multi-thread"] }
 

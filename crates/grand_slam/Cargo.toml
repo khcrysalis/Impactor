@@ -1,5 +1,5 @@
 [package]
-name = "grand_slam"
+name = "grand_slam" # TODO: rename to sinners_road
 edition.workspace = true
 version.workspace = true
 authors.workspace = true

@@ -4,11 +4,8 @@ use std::process::exit;
 use clap::Parser;
 
 use clap::{Args, Subcommand};
-use grand_slam::Bundle;
-use grand_slam::utils::{CertificateIdentity, PlistInfoTrait};
-use grand_slam::utils::MobileProvision;
-use grand_slam::utils::Signer;
-use grand_slam::utils::SignerSettings;
+use grand_slam::{CertificateIdentity, Bundle, MobileProvision, Signer};
+use grand_slam::utils::{PlistInfoTrait, SignerSettings};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, disable_help_subcommand = true)]

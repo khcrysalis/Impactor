@@ -102,17 +102,22 @@ impl PlistInfoTrait for Package {
 }
 
 impl Package {
+    // TODO: custom per-app settings
     pub fn load_into_signer_settings<'settings, 'slf: 'settings>(
         &'slf self,
         settings: &'settings mut SignerSettings,
-    ) -> Result<(), Error> {
-
-        Ok(())
+    ) {
+        if let Some(identifier) = self.get_bundle_identifier() {
+            match identifier.as_str() {
+                "com.kdt.livecontainer" => {
+                    settings.should_only_use_main_provisioning = true;
+                }
+                _ => {}
+            }
+        }
     }
+    // depending on the apps pairing file placement, theres going to be different paths...
+    // Feather, StikDebug, Protokolle, Antrag, use ./pairingFile.plist
+    // LiveContainers uses ./SideStore/Documents/ALTPairingFile.mobiledevicepairing
+    // SideStore uses ./ALTPairingFile.mobiledevicepairing 
 }
-
-// impl Drop for Package {
-//     fn drop(&mut self) {
-//         fs::remove_dir_all(&self.stage_dir).ok();
-//     }
-// }

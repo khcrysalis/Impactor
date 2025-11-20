@@ -1,6 +1,7 @@
 use std::{fs, path::PathBuf, vec};
 
 use apple_codesign::{cryptography::{InMemoryPrivateKey, PrivateKey}, SigningSettings};
+// TODO: why do we have pem and pem_rfc7468 deps again?
 use pem_rfc7468::{LineEnding, encode_string};
 use rand::rngs::OsRng;
 use rcgen::{DnType, KeyPair, PKCS_RSA_SHA256};
