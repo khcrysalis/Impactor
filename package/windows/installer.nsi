@@ -6,7 +6,7 @@
 !define APPEXE  "plumeimpactor.exe"
 !define COMPANY "Samara"
 
-Name "${APPNAME} Installer"
+Name "${APPNAME}"
 BrandingText "${APPNAME} Setup"
 
 OutFile "PlumeInstaller.exe"
