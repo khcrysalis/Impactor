@@ -94,9 +94,9 @@ impl CertificateIdentity {
         };
 
         // TODO: this may be horrendious
-        // if let Some(p12_data) = cert.create_pkcs12(&key_pair) {
-        //     cert.p12_data = Some(p12_data);
-        // }
+        if let Some(p12_data) = cert.create_pkcs12(&key_pair) {
+            cert.p12_data = Some(p12_data);
+        }
 
         for pem in key_pair {
             cert.resolve_certificate_from_contents(pem)?;
@@ -114,25 +114,43 @@ impl CertificateIdentity {
         Ok(dir)
     }
 
-    // fn set_machine_id(&mut self, machine_id: String) {
-    //     println!("Setting machine id: {}", machine_id);
-    //     self.machine_id = Some(machine_id);
-    // }
+    fn set_machine_id(&mut self, machine_id: String) {
+        println!("Setting machine id: {}", machine_id);
+        self.machine_id = Some(machine_id);
+    }
 
-    // fn set_serial_number(&mut self, serial_number: String) {
-    //     println!("Setting serial number: {}", serial_number);
-    //     self.serial_number = Some(serial_number);
-    // }
+    fn set_serial_number(&mut self, serial_number: String) {
+        println!("Setting serial number: {}", serial_number);
+        self.serial_number = Some(serial_number);
+    }
 
     // TODO: cleanest p12 code of them all
-    // pub fn create_pkcs12(&self, data: &[Vec<u8>; 2]) -> Option<Vec<u8>> {
-    //     let machine_id = self.machine_id.as_ref()?;
-    //     let cert_der = pem::parse(&data[0]).ok()?.contents().to_vec();
-    //     let key_der = pem::parse(&data[1]).ok()?.contents().to_vec();
+    // the main horror about p12 creation is that we rely on p12-keystore which is
+    // just another unnecessary dependency, but the p12 crate that applecodesign-rs
+    // uses has no support for modern encryption, hopefully this doesn't add that
+    // much more bloat
+    pub fn create_pkcs12(&self, data: &[Vec<u8>; 2]) -> Option<Vec<u8>> {
+        let cert_der = pem::parse(&data[0]).ok()?.contents().to_vec(); 
+        let key_der = pem::parse(&data[1]).ok()?.contents().to_vec();
 
-    //     let p12 = p12::PFX::new(&cert_der, &key_der, None, &machine_id, "PLUME")?;
-    //     Some(p12.to_der())
-    // }
+        let cert = p12_keystore::Certificate::from_der(&cert_der).ok()?;
+
+        let local_key_id = {
+            use sha1::{Sha1, Digest};
+            let mut hasher = Sha1::new();
+            hasher.update(&key_der);
+            let hash = hasher.finalize();
+            hash[..8].to_vec()
+        };
+
+        let key_chain = p12_keystore::PrivateKeyChain::new(key_der, local_key_id, vec![cert]);
+
+        let mut keystore = p12_keystore::KeyStore::new();
+        keystore.add_entry("plume", p12_keystore::KeyStoreEntry::PrivateKeyChain(key_chain));
+
+        let writer = keystore.writer(self.machine_id.as_deref().unwrap_or(""));
+        writer.write().ok()
+    }
 
     // applecodesign-rs needs our contents as strings to sign
     fn resolve_certificate_from_contents(&mut self, contents: Vec<u8>) -> Result<(), Error> {
@@ -189,11 +207,11 @@ impl CertificateIdentity {
                 let parsed_cert = X509Certificate::from_der(&cert.cert_content)?;
                 if pub_key_der_obj == parsed_cert.public_key_data().as_ref() {
                     // We need to save the machine_id for our P12
-                    // if let Some(ref machine_id) = cert.machine_id {
-                    //     self.set_machine_id(machine_id.clone());
-                    // }
+                    if let Some(ref machine_id) = cert.machine_id {
+                        self.set_machine_id(machine_id.clone());
+                    }
 
-                    // self.set_serial_number(cert.serial_number.clone());
+                    self.set_serial_number(cert.serial_number.clone());
 
                     return Ok(Some(cert));
                 }
@@ -277,11 +295,11 @@ impl CertificateIdentity {
         }.cert_request;
 
         // We need to save the machine_id for our P12
-        // if let Some(ref machine_id) = cert_id.machine_id {
-        //     self.set_machine_id(machine_id.clone());
-        // }
+        if let Some(ref machine_id) = cert_id.machine_id {
+            self.set_machine_id(machine_id.clone());
+        }
 
-        // self.set_serial_number(cert_id.serial_num.clone());
+        self.set_serial_number(cert_id.serial_num.clone());
 
         // We request again, and hope this has our new certificate 
         // ready.... if not then woops... thats too bad isnt it
