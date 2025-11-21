@@ -88,7 +88,8 @@ jobs:
           mkdir -p build/nsis
           mv package/windows/* build/nsis/
           choco install nsis.portable
-          makensis -DOUTPUT_EXE=build/out/${{ env.BUNDLE_NAME }}-setup.exe -DAPP_NAME=${{ env.BUNDLE_NAME }} build/nsis/installer.nsi
+          makensis build/nsis/installer.nsi
+          mv build/nsis/PlumeInstaller.exe build/out/${{ env.BINARY_NAME }}-setup.exe
 
       - name: Upload Bundles
         uses: actions/upload-artifact@v4
