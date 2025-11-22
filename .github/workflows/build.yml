@@ -3,6 +3,13 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'apps/**'
+      - 'package/**'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
 
 env:

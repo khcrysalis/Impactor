@@ -184,6 +184,10 @@ impl CertificateIdentity {
 
         settings.set_signing_key(signing_key.as_key_info_signer(), signing_cert);
         settings.chain_apple_certificates();
+        
+        settings.set_for_notarization(false);
+        settings.set_shallow(false);
+        settings.set_team_id_from_signing_certificate();
 
         Ok(())
     }
@@ -277,6 +281,7 @@ impl CertificateIdentity {
                                     .is_ok()
                                 {
                                     revoked_any = true;
+                                    break;
                                 }
                             }
                             

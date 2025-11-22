@@ -9,15 +9,15 @@ repository.workspace = true
 
 [dependencies]
 idevice.workspace = true
-zip.workspace = true
 tokio.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 plist.workspace = true
+futures.workspace = true
 grand_slam = { path = "../../crates/grand_slam", features = ["vendored-botan"] }
+utils = { path = "../../crates/utils" }
 
 wxdragon = "0.9.2"
-futures = "0.3.31"
 rustls = { version = "0.23.32", features = ["ring"] }
 
 keyring = { version = "3.6.3", default-features = false, features = ["windows-native", "apple-native", "linux-native"] }

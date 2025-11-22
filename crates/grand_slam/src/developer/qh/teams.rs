@@ -27,7 +27,7 @@ pub struct TeamsResponse {
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Team {
     pub status: String,
@@ -44,7 +44,7 @@ pub struct Team {
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Membership {
     membership_id: String,
@@ -58,7 +58,7 @@ struct Membership {
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct TeamMember {
     team_member_id: String,
@@ -72,7 +72,7 @@ struct TeamMember {
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct TeamProvisionSettings {
     can_developer_role_register_devices: bool,

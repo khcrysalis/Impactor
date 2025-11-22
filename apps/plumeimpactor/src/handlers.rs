@@ -1,15 +1,18 @@
 use wxdragon::prelude::*;
-
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::error::TryRecvError;
+use tokio::sync::{
+    mpsc, 
+    mpsc::error::TryRecvError
+};
 use std::sync::mpsc as std_mpsc;
-
 use grand_slam::auth::Account;
-use grand_slam::utils::{PlistInfoTrait, SignerSettings};
-
+use utils::{
+    SignerOptions, 
+    Package, 
+    PlistInfoTrait,
+    Device
+};
 use crate::frame::PlumeFrame;
 use crate::keychain::AccountCredentials;
-use crate::utils::{Device, Package};
 
 #[derive(Debug)]
 pub enum PlumeFrameMessage {
@@ -20,6 +23,7 @@ pub enum PlumeFrameMessage {
     AccountLogin(Account),
     AccountDeleted,
     AwaitingTwoFactorCode(std_mpsc::Sender<Result<String, String>>),
+    RequestTeamSelection(Vec<String>, std_mpsc::Sender<Result<i32, String>>),
     InstallProgress(i32, Option<String>),
     Error(String),
 }
@@ -36,7 +40,7 @@ pub struct PlumeFrameMessageHandler {
     // --- account ---
     pub account_credentials: Option<Account>,
     // --- signer settings ---
-    pub signer_settings: SignerSettings,
+    pub signer_settings: SignerOptions,
 }
 
 impl PlumeFrameMessageHandler {
@@ -44,7 +48,7 @@ impl PlumeFrameMessageHandler {
         receiver: mpsc::UnboundedReceiver<PlumeFrameMessage>,
         plume_frame: PlumeFrame,
     ) -> Self {
-        let signer_settings = SignerSettings::default();
+        let signer_settings = SignerOptions::default();
         Self {
             receiver,
             plume_frame,
@@ -119,7 +123,7 @@ impl PlumeFrameMessageHandler {
                     return;
                 }
 
-                package.load_into_signer_settings(&mut self.signer_settings);
+                package.load_into_signer_options(&mut self.signer_settings);
 
                 self.package_selected = Some(package);
                 self.plume_frame.install_page.set_settings(&self.signer_settings, Some(self.package_selected.as_ref().unwrap()));
@@ -139,7 +143,7 @@ impl PlumeFrameMessageHandler {
                 self.plume_frame.install_page.panel.hide();
                 self.plume_frame.default_page.panel.show(true);
                 self.plume_frame.frame.layout();
-                self.signer_settings = SignerSettings::default();
+                self.signer_settings = SignerOptions::default();
                 self.plume_frame.install_page.set_settings(&self.signer_settings, None);
                 self.plume_frame.add_ipa_button.enable(true);
             }
@@ -180,6 +184,17 @@ impl PlumeFrameMessageHandler {
 
                 if let Err(e) = tx.send(result) {
                     self.handle_message(PlumeFrameMessage::Error(format!("Failed to send two-factor code response: {}", e)));
+                }
+            }
+            PlumeFrameMessage::RequestTeamSelection(teams, tx) => {
+                let result = self.plume_frame.create_text_selection_dialog(
+                    "Select a Team",
+                    "Please select a team from the list:",
+                    teams,
+                );
+
+                if let Err(e) = tx.send(result) {
+                    self.handle_message(PlumeFrameMessage::Error(format!("Failed to send team selection response: {}", e)));
                 }
             }
             PlumeFrameMessage::InstallProgress(progress, message_opt) => {

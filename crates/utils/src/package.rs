@@ -1,15 +1,14 @@
-use std::{env, fs};
-use std::io::Read;
-
+use std::{
+    env, 
+    fs, 
+    io::Read
+};
 use std::path::PathBuf;
-
 use plist::Dictionary;
 use uuid::Uuid;
 use zip::ZipArchive;
-
-use grand_slam::Bundle;
-use grand_slam::utils::{PlistInfoTrait, SignerSettings};
-use crate::Error;
+use super::{Bundle, PlistInfoTrait};
+use crate::{Error, SignerApp, SignerOptions};
 
 #[derive(Debug, Clone)]
 pub struct Package {
@@ -17,6 +16,7 @@ pub struct Package {
     stage_dir: PathBuf,
     stage_payload_dir: PathBuf,
     info_plist_dictionary: Dictionary,
+    archive_entries: Vec<String>,
 }
 
 impl Package {
@@ -26,14 +26,44 @@ impl Package {
 
         fs::create_dir_all(&stage_dir).ok();
         fs::copy(&package_file, &out_package_file)?;
-        let info_plist_dictionary = Self::get_info_plist_contents(&out_package_file)?;
+
+        let file = fs::File::open(&out_package_file)?;
+        let mut archive = ZipArchive::new(file)?;
+        let archive_entries = (0..archive.len())
+            .filter_map(|i| archive.by_index(i).ok().map(|f| f.name().to_string()))
+            .collect::<Vec<_>>();
+
+        let info_plist_dictionary = Self::get_info_plist_from_archive(&out_package_file, &archive_entries)?;
 
         Ok(Self {
             package_file: out_package_file,
             stage_dir: stage_dir.clone(),
             stage_payload_dir: stage_dir.join("Payload"),
             info_plist_dictionary,
+            archive_entries,
         })
+    }
+
+    fn get_info_plist_from_archive(
+        archive_path: &PathBuf,
+        archive_entries: &[String],
+    ) -> Result<Dictionary, Error> {
+        let file = fs::File::open(archive_path)?;
+        let mut archive = ZipArchive::new(file)?;
+
+        let info_plist_path = archive_entries
+            .iter()
+            .find(|entry| entry.starts_with("Payload/") && entry.ends_with(".app/Info.plist"))
+            .ok_or(Error::PackageInfoPlistMissing)?;
+
+        let mut plist_file = archive.by_name(info_plist_path)?;
+        let mut plist_data = Vec::new();
+        plist_file.read_to_end(&mut plist_data)?;
+
+        let plist = plist::Value::from_reader_xml(&*plist_data)
+            .map_err(|_| Error::PackageInfoPlistMissing)?;
+
+        plist.as_dictionary().cloned().ok_or(Error::PackageInfoPlistMissing)
     }
     
     pub fn get_package_bundle(&self) -> Result<Bundle, Error> {
@@ -50,28 +80,12 @@ impl Package {
         Ok(Bundle::new(app_dir)?)
     }
 
-    fn get_info_plist_contents(package_file: &PathBuf) -> Result<Dictionary, Error> {
-        let mut archive = ZipArchive::new(fs::File::open(package_file)?)?;
-        let info_name = {
-            let mut names = archive.file_names();
-            names
-                .find(|name| name.starts_with("Payload/") 
-                    && name.ends_with(".app/Info.plist")
-                    && name.matches('/').count() == 2)
-                .ok_or(Error::PackageInfoPlistMissing)?
-                .to_string()
-        };
-        let mut entry = archive.by_name(&info_name)?;
-        let mut buf = Vec::new();
-        entry.read_to_end(&mut buf)?;
-        Ok(plist::from_bytes(&buf)?)
-    }
-
     pub fn remove_package_stage(self) {
         fs::remove_dir_all(&self.stage_dir).ok();
     }
 }
 
+// TODO: make bundle and package share a common trait for plist info access
 macro_rules! get_plist_dict_value {
     ($self:ident, $key:expr) => {{
         $self.info_plist_dictionary
@@ -106,25 +120,17 @@ impl PlistInfoTrait for Package {
 }
 
 impl Package {
-    // TODO: custom per-app settings
-    pub fn load_into_signer_settings<'settings, 'slf: 'settings>(
+    pub fn load_into_signer_options<'settings, 'slf: 'settings>(
         &'slf self,
-        settings: &'settings mut SignerSettings,
+        settings: &'settings mut SignerOptions,
     ) {
-        if let Some(identifier) = self.get_bundle_identifier() {
-            match identifier.as_str() {
-                "com.kdt.livecontainer" => {
-                    settings.should_only_use_main_provisioning = true;
-                }
-                "com.SideStore.SideStore" => {
-                    settings.should_simulate_altserver = true;
-                }
-                _ => {}
-            }
-        }
+        let app = if self.archive_entries.iter().any(|entry| entry.contains("SideStoreApp.framework")) {
+            SignerApp::LiveContainerAndSideStore
+        } else {
+            SignerApp::from_bundle_identifier(self.get_bundle_identifier().as_deref())
+        };
+
+        let new_settings = SignerOptions::new_for_app(app);
+        *settings = new_settings;
     }
-    // depending on the apps pairing file placement, theres going to be different paths...
-    // Feather, StikDebug, Protokolle, Antrag, use ./pairingFile.plist
-    // LiveContainers uses ./SideStore/Documents/ALTPairingFile.mobiledevicepairing
-    // SideStore uses ./ALTPairingFile.mobiledevicepairing 
 }

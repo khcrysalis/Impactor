@@ -3,7 +3,8 @@ resolver = "3"
 members = [
     "apps/plumeimpactor",
     "apps/plumesign",
-    "crates/grand_slam"
+    "crates/grand_slam",
+    "crates/utils"
 ]
 
 [workspace.package]
@@ -30,7 +31,7 @@ incremental = true          # Improves re-compile times
 tokio = { version = "1.43", features = ["macros", "rt-multi-thread"] }
 
 # Application
-idevice = { git = "https://github.com/jkcoxson/idevice", rev = "ea61459", features = ["afc", "installation_proxy", "debug_proxy", "rsd", "tunnel_tcp_stack", "heartbeat", "usbmuxd"] }
+idevice = { git = "https://github.com/jkcoxson/idevice", rev = "ea61459", features = ["afc", "installation_proxy", "debug_proxy", "rsd", "tunnel_tcp_stack", "heartbeat", "usbmuxd", "house_arrest"] }
 zip = { version = "4.3", default-features = false, features = ["deflate"] }
 plist = "1.8.0"
 omnisette = { git = "https://github.com/PlumeImpactor/omnisette", rev = "ce1e5cc", package = "omnisette", features = ["remote-anisette-v3"] }
@@ -47,6 +48,7 @@ apple-codesign = { version = "0.29.0", default-features = false }
 uuid = "1.18.1"
 reqwest = { version = "0.11.14", features = ["blocking", "json", "default-tls"] }
 serde_json = { version = "1" }
+futures = "0.3.31"
 
 [patch.crates-io]
 srp = { path="./target/patch/srp-0.6.0" }

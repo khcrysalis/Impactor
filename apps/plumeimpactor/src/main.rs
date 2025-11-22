@@ -4,7 +4,6 @@ mod frame;
 mod keychain;
 mod pages;
 mod handlers;
-mod utils;
 
 use std::{
     env, 
@@ -25,18 +24,16 @@ use thiserror::Error as ThisError;
 
 #[derive(Debug, ThisError)]
 pub enum Error {
-    #[error("Info.plist not found")]
-    PackageInfoPlistMissing,
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Plist error: {0}")]
     Plist(#[from] plist::Error),
-    #[error("Zip error: {0}")]
-    Zip(#[from] zip::result::ZipError),
     #[error("Idevice error: {0}")]
     Idevice(#[from] idevice::IdeviceError),
     #[error("GrandSlam error: {0}")]
     GrandSlam(#[from] grand_slam::Error),
+    #[error("Utils error: {0}")]
+    Utils(#[from] utils::Error),
 }
 
 pub fn get_data_path() -> PathBuf {

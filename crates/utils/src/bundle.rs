@@ -1,35 +1,15 @@
-use std::fs;
-use std::path::PathBuf;
-
+use std::{
+    fs, 
+    path::PathBuf
+};
 use plist::Value;
-
 use super::PlistInfoTrait;
-
 use crate::Error;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum BundleType {
-    App,
-    AppExtension,
-    Framework,
-    Unknown
-}
-
-impl BundleType {
-    pub fn from_extension(ext: &str) -> Option<Self> {
-        match ext {
-            "app" => Some(BundleType::App),
-            "appex" => Some(BundleType::AppExtension),
-            "framework" => Some(BundleType::Framework),
-            _ => Some(BundleType::Unknown),
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct Bundle {
     dir: PathBuf,
-    pub _type: BundleType,
+    _type: BundleType,
     info_plist_file: PathBuf,
 }
 
@@ -55,8 +35,12 @@ impl Bundle {
         })
     }
     
-    pub fn dir(&self) -> &PathBuf {
+    pub fn bundle_dir(&self) -> &PathBuf {
         &self.dir
+    }
+    
+    pub fn bundle_type(&self) -> &BundleType {
+        &self._type
     }
     
     pub fn collect_nested_bundles(&self) -> Result<Vec<Bundle>, Error> {
@@ -66,12 +50,14 @@ impl Bundle {
     pub fn collect_bundles_sorted(&self) -> Result<Vec<Bundle>, Error> {
         let mut bundles = self.collect_nested_bundles()?;
         bundles.push(self.clone());
-        bundles.sort_by_key(|b| b.dir().components().count());
+        bundles.sort_by_key(|b| b.bundle_dir().components().count());
         bundles.reverse();
         
         Ok(bundles)
     }
+}
 
+impl Bundle {
     pub fn set_info_plist_key<V: Into<Value>>(
         &self,
         key: &str,
@@ -181,12 +167,6 @@ impl PlistInfoTrait for Bundle {
     }
 }
 
-impl Bundle {
-    pub fn is_sidestore(&self) -> bool {
-        matches!(self.get_bundle_identifier().as_deref(), Some("com.SideStore.SideStore"))
-    }
-}
-
 fn collect_embeded_bundles_from_dir(dir: &PathBuf) -> Result<Vec<Bundle>, Error> {
     let mut bundles = Vec::new();
     
@@ -240,4 +220,23 @@ fn collect_embeded_bundles_from_dir(dir: &PathBuf) -> Result<Vec<Bundle>, Error>
     }
 
     Ok(bundles)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BundleType {
+    App,
+    AppExtension,
+    Framework,
+    Unknown
+}
+
+impl BundleType {
+    pub fn from_extension(ext: &str) -> Option<Self> {
+        match ext {
+            "app" => Some(BundleType::App),
+            "appex" => Some(BundleType::AppExtension),
+            "framework" => Some(BundleType::Framework),
+            _ => Some(BundleType::Unknown),
+        }
+    }
 }

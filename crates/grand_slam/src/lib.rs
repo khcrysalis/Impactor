@@ -1,19 +1,18 @@
 pub mod auth;
 pub mod developer;
-pub mod utils;
+mod utils;
 
 use plist::Dictionary;
 use serde_json::Value;
 
 use crate::auth::account::request::RequestType;
 
+pub use apple_codesign::{SigningSettings, SettingsScope, UnifiedSigner, AppleCodesignError};
 pub use omnisette::AnisetteConfiguration;
+
 pub use utils::MachO;
 pub use utils::MobileProvision;
 pub use utils::CertificateIdentity;
-pub use utils::Signer;
-pub use utils::Bundle;
-pub use utils::BundleType;
 
 trait SessionRequestTrait {
     async fn qh_send_request(&self, endpoint: &str, payload: Option<Dictionary>) -> Result<Dictionary, Error>;
@@ -21,11 +20,8 @@ trait SessionRequestTrait {
 }
 
 use thiserror::Error as ThisError;
-
 #[derive(Debug, ThisError)]
 pub enum Error {
-    #[error("Info.plist not found")]
-    BundleInfoPlistMissing,
     #[error("Executable not found")]
     BundleExecutableMissing,
 

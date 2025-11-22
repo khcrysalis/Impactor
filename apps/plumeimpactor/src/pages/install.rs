@@ -1,7 +1,5 @@
-use grand_slam::utils::{PlistInfoTrait, SignerSettings};
+use utils::{PlistInfoTrait, SignerOptions, Package};
 use wxdragon::prelude::*;
-
-use crate::utils::Package;
 
 #[derive(Clone)]
 pub struct InstallPage {
@@ -17,7 +15,6 @@ pub struct InstallPage {
     ipad_fullscreen_checkbox: CheckBox,
     game_mode_checkbox: CheckBox,
     pro_motion_checkbox: CheckBox,
-    should_embed_pairing_checkbox: CheckBox,
     skip_registering_extensions_checkbox: CheckBox,
     
     original_name: Option<String>,
@@ -80,10 +77,6 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
     let advanced_label = StaticText::builder(&panel)
         .with_label("Advanced:")
         .build();
-    let should_embed_pairing_checkbox = CheckBox::builder(&panel)
-        .with_label("Embed Pairing File")
-        .build();
-    should_embed_pairing_checkbox.enable(false);
     let skip_registering_extensions_checkbox = CheckBox::builder(&panel)
         .with_label("Only Register Main Bundle")
         .build();
@@ -94,8 +87,7 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
     checkbox_sizer.add(&game_mode_checkbox, 0, SizerFlag::Expand | SizerFlag::Top | SizerFlag::Left, 8);
     checkbox_sizer.add(&pro_motion_checkbox, 0, SizerFlag::Expand | SizerFlag::Top | SizerFlag::Left | SizerFlag::Bottom, 8);
     checkbox_sizer.add(&advanced_label, 0, SizerFlag::Top | SizerFlag::Bottom, 6);
-    checkbox_sizer.add(&should_embed_pairing_checkbox, 0, SizerFlag::Expand | SizerFlag::Left, 8);
-    checkbox_sizer.add(&skip_registering_extensions_checkbox, 0, SizerFlag::Expand | SizerFlag::Top | SizerFlag::Left, 8);
+    checkbox_sizer.add(&skip_registering_extensions_checkbox, 0, SizerFlag::Expand | SizerFlag::Left, 8);
 
     settings_sizer.add_sizer(&textfields_sizer, 1, SizerFlag::Expand | SizerFlag::Right, 13);
     settings_sizer.add_sizer(&checkbox_sizer, 1, SizerFlag::Expand, 13);
@@ -140,7 +132,6 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
         ipad_fullscreen_checkbox,
         game_mode_checkbox,
         pro_motion_checkbox,
-        should_embed_pairing_checkbox,
         skip_registering_extensions_checkbox,
         
         original_name: None,
@@ -151,14 +142,13 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
 
 
 impl InstallPage {
-    pub fn set_settings(&mut self, settings: &SignerSettings, package: Option<&Package>) {
-        self.support_older_versions_checkbox.set_value(settings.support_minimum_os_version);
-        self.support_file_sharing_checkbox.set_value(settings.support_file_sharing);
-        self.ipad_fullscreen_checkbox.set_value(settings.support_ipad_fullscreen);
-        self.game_mode_checkbox.set_value(settings.support_game_mode);
-        self.pro_motion_checkbox.set_value(settings.support_pro_motion);
-        self.should_embed_pairing_checkbox.set_value(settings.should_embed_pairing);
-        self.skip_registering_extensions_checkbox.set_value(settings.should_only_use_main_provisioning);
+    pub fn set_settings(&mut self, settings: &SignerOptions, package: Option<&Package>) {
+        self.support_older_versions_checkbox.set_value(settings.features.support_minimum_os_version);
+        self.support_file_sharing_checkbox.set_value(settings.features.support_file_sharing);
+        self.ipad_fullscreen_checkbox.set_value(settings.features.support_ipad_fullscreen);
+        self.game_mode_checkbox.set_value(settings.features.support_game_mode);
+        self.pro_motion_checkbox.set_value(settings.features.support_pro_motion);
+        self.skip_registering_extensions_checkbox.set_value(settings.embedding.single_profile);
         
         if let Some(package) = package {
             if let Some(ref name) = package.get_name() {
@@ -194,15 +184,14 @@ impl InstallPage {
         }
     }
     
-    pub fn update_fields(&self, settings: &mut SignerSettings) {
-        settings.support_minimum_os_version = self.support_older_versions_checkbox.get_value();
-        settings.support_file_sharing = self.support_file_sharing_checkbox.get_value();
-        settings.support_ipad_fullscreen = self.ipad_fullscreen_checkbox.get_value();
-        settings.support_game_mode = self.game_mode_checkbox.get_value();
-        settings.support_pro_motion = self.pro_motion_checkbox.get_value();
-        settings.should_embed_pairing = self.should_embed_pairing_checkbox.get_value();
-        settings.should_only_use_main_provisioning = self.skip_registering_extensions_checkbox.get_value();
-        
+    pub fn update_fields(&self, settings: &mut SignerOptions) {
+        settings.features.support_minimum_os_version = self.support_older_versions_checkbox.get_value();
+        settings.features.support_file_sharing = self.support_file_sharing_checkbox.get_value();
+        settings.features.support_ipad_fullscreen = self.ipad_fullscreen_checkbox.get_value();
+        settings.features.support_game_mode = self.game_mode_checkbox.get_value();
+        settings.features.support_pro_motion = self.pro_motion_checkbox.get_value();
+        settings.embedding.single_profile = self.skip_registering_extensions_checkbox.get_value();
+
         if let Some(ref original_name) = self.original_name {
             let current_name = self.custom_name_textfield.get_value();
             if &current_name != original_name {
