@@ -23,6 +23,7 @@ pub enum PlumeFrameMessage {
     AccountLogin(Account),
     AccountDeleted,
     AwaitingTwoFactorCode(std_mpsc::Sender<Result<String, String>>),
+    RequestTeamSelection(Vec<String>, std_mpsc::Sender<Result<i32, String>>),
     InstallProgress(i32, Option<String>),
     Error(String),
 }
@@ -183,6 +184,17 @@ impl PlumeFrameMessageHandler {
 
                 if let Err(e) = tx.send(result) {
                     self.handle_message(PlumeFrameMessage::Error(format!("Failed to send two-factor code response: {}", e)));
+                }
+            }
+            PlumeFrameMessage::RequestTeamSelection(teams, tx) => {
+                let result = self.plume_frame.create_text_selection_dialog(
+                    "Select a Team",
+                    "Please select a team from the list:",
+                    teams,
+                );
+
+                if let Err(e) = tx.send(result) {
+                    self.handle_message(PlumeFrameMessage::Error(format!("Failed to send team selection response: {}", e)));
                 }
             }
             PlumeFrameMessage::InstallProgress(progress, message_opt) => {

@@ -172,18 +172,15 @@ impl Signer {
                 let id = sub_bundle.get_bundle_identifier()
                     .ok_or_else(|| Error::Other("Failed to get bundle identifier.".into()))?;
 
-                session.qh_ensure_app_id(&team_id, &sub_bundle.get_name().unwrap_or_default(), &id)
-                    .await?;
+                session.qh_ensure_app_id(&team_id, &sub_bundle.get_name().unwrap_or_default(), &id).await?;
 
-                let capabilities = session.v1_list_capabilities(&team_id)
-                    .await?;
+                let capabilities = session.v1_list_capabilities(&team_id).await?;
 
                 let app_id_id = session.qh_get_app_id(&team_id, &id).await?
                     .ok_or_else(|| Error::Other("Failed to get ensured app ID.".into()))?;
 
                 if let Some(caps) = macho.capabilities_for_entitlements(&capabilities.data) {
-                    session.v1_update_app_id(&team_id, &id, caps)
-                        .await?;
+                    session.v1_update_app_id(&team_id, &id, caps).await?;
                 }
 
                 if let Some(app_groups) = macho.app_groups_for_entitlements() {
@@ -201,19 +198,14 @@ impl Signer {
                         )?;
                     }
 
-                    session.qh_assign_app_group(&team_id, &app_id_id.app_id_id, &app_group_ids)
-                        .await?;
+                    session.qh_assign_app_group(&team_id, &app_id_id.app_id_id, &app_group_ids).await?;
                 }
 
-                let profiles = session.qh_get_profile(&team_id, &app_id_id.app_id_id)
-                    .await?;
-
+                let profiles = session.qh_get_profile(&team_id, &app_id_id.app_id_id).await?;
                 let profile_data = profiles.provisioning_profile.encoded_profile;
 
                 tokio::fs::write(sub_bundle.bundle_dir().join("embedded.mobileprovision"), &profile_data).await?;
-
                 let mobile_provision = MobileProvision::load_with_bytes(profile_data.as_ref().to_vec())?;
-
                 Ok::<_, Error>(mobile_provision)
             })
         });

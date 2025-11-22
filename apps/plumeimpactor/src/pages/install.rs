@@ -87,7 +87,7 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
     checkbox_sizer.add(&game_mode_checkbox, 0, SizerFlag::Expand | SizerFlag::Top | SizerFlag::Left, 8);
     checkbox_sizer.add(&pro_motion_checkbox, 0, SizerFlag::Expand | SizerFlag::Top | SizerFlag::Left | SizerFlag::Bottom, 8);
     checkbox_sizer.add(&advanced_label, 0, SizerFlag::Top | SizerFlag::Bottom, 6);
-    checkbox_sizer.add(&skip_registering_extensions_checkbox, 0, SizerFlag::Expand | SizerFlag::Top | SizerFlag::Left, 8);
+    checkbox_sizer.add(&skip_registering_extensions_checkbox, 0, SizerFlag::Expand | SizerFlag::Left, 8);
 
     settings_sizer.add_sizer(&textfields_sizer, 1, SizerFlag::Expand | SizerFlag::Right, 13);
     settings_sizer.add_sizer(&checkbox_sizer, 1, SizerFlag::Expand, 13);

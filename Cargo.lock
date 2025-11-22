@@ -2959,7 +2959,6 @@ dependencies = [
 name = "plumeimpactor"
 version = "0.0.1"
 dependencies = [
- "apple-codesign",
  "embed-manifest",
  "futures",
  "grand_slam",

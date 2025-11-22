@@ -11,11 +11,10 @@ use grand_slam::{
 };
 
 use idevice::{
-    utils::installation,
-    usbmuxd::{UsbmuxdAddr, UsbmuxdConnection, UsbmuxdListenEvent},
+    usbmuxd::{UsbmuxdConnection, UsbmuxdListenEvent},
 };
 
-use utils::{Device, Package, PlistInfoTrait, Signer, SignerMode};
+use utils::{Device, Package, PlistInfoTrait, Signer};
 
 use wxdragon::prelude::*;
 use futures::StreamExt;
@@ -376,34 +375,42 @@ impl PlumeFrame {
 
                         let device = Device::new(usbmuxd_device.clone()).await;
                         
-                        // TODO: Handle multiple teams properly
                         let teams = session.qh_list_teams()
                             .await
                             .map_err(|e| format!("Failed to list teams: {}", e))?.teams;
                         
-                        if teams.len() != 1 {
-                            return Err("Multiple teams detected for the Apple ID account.".to_string());
+                        if teams.is_empty() {
+                            return Err("No teams available for the Apple ID account.".to_string());
                         }
                         
-                        let team_id = &teams.get(0)
-                            .ok_or("No teams available for the Apple ID account.")?
-                            .team_id;
-
-                        let mut signer: Signer = if signer_settings.mode == SignerMode::Export {
-                            Signer::adhoc(signer_settings.clone())
+                        let team_id = if teams.len() == 1 {
+                            &teams[0].team_id
                         } else {
-                            let cert_identity = CertificateIdentity::new_with_session(
-                                &session,
-                                get_data_path(),
-                                None,
-                                team_id,
-                            ).await.map_err(|e| e.to_string())?;
+                            let team_names: Vec<String> = teams.iter()
+                                .map(|t| format!("{} ({})", t.name, t.team_id))
+                                .collect();
                             
-                            Signer::new(
-                                Some(cert_identity),
-                                signer_settings.clone(),
-                            )
+                            let (tx, rx) = std::sync::mpsc::channel();
+                            sender_clone.send(PlumeFrameMessage::RequestTeamSelection(team_names, tx)).ok();
+                            
+                            let selected_index = rx.recv()
+                                .map_err(|_| "Team selection cancelled".to_string())?
+                                .map_err(|e| format!("Team selection error: {}", e))?;
+                            
+                            &teams[selected_index as usize].team_id
                         };
+
+                        let cert_identity = CertificateIdentity::new_with_session(
+                            &session,
+                            get_data_path(),
+                            None,
+                            team_id,
+                        ).await.map_err(|e| e.to_string())?;
+
+                        let mut signer = Signer::new(
+                            Some(cert_identity),
+                            signer_settings.clone(),
+                        );
 
                         session.qh_ensure_device(
                             team_id,
@@ -432,35 +439,27 @@ impl PlumeFrame {
 
                         signer.sign_bundle(&bundle).await
                             .map_err(|e| format!("Failed to sign bundle: {}", e))?;
-                        
-                        if signer_settings.mode != SignerMode::Export {
-                            let provider = usbmuxd_device.to_provider(UsbmuxdAddr::from_env_var().unwrap(), "baller");
-                            
-                            let bundle_name = bundle.get_name().unwrap_or_default();
-                            let callback = {
-                                let sender_clone = sender_clone.clone();
-                                move |(progress, _): (u64, ())| {
-                                    let sender = sender_clone.clone();
-                                    let bundle_name = bundle_name.clone();
-                                    async move {
-                                        sender.send(PlumeFrameMessage::InstallProgress(progress as i32, Some(format!("Installing {}... {}%", bundle_name, progress)))).ok();
-                                    }
+
+                        let progress_callback = {
+                            let sender = sender_clone.clone();
+                            move |progress: i32| {
+                                let sender = sender.clone();
+                                async move {
+                                    sender.send(PlumeFrameMessage::InstallProgress(progress, None)).ok();
                                 }
-                            };
-                            
-                            let state = ();
-                            
-                            installation::install_package_with_callback(&provider, bundle.bundle_dir(), None, callback, state)
-                                .await
-                                .map_err(|e| format!("Failed to install package: {}", e))?;
-                        } else {
-                            todo!("Export IPA functionality");
-                        }
+                            }
+                        };
+
+                        device.install_app(&bundle.bundle_dir(), progress_callback).await
+                            .map_err(|e| format!("Failed to install app: {}", e))?;
 
                         if signer_settings.app.supports_pairing_file() {
-                            if let Some(pairing_file_bundle_path) = signer_settings.app.pairing_file_path() {
+                            if let (Some(custom_identifier), Some(pairing_file_bundle_path)) = (
+                                signer.options.custom_identifier.as_ref(),
+                                signer_settings.app.pairing_file_path(),
+                            ) {
                                 sender_clone.send(PlumeFrameMessage::InstallProgress(90, Some("Installing pairing record...".to_string()))).ok();
-                                device.install_pairing_record(&signer.options.custom_identifier.unwrap(), &pairing_file_bundle_path)
+                                device.install_pairing_record(custom_identifier, &pairing_file_bundle_path)
                                     .await
                                     .map_err(|e| format!("Failed to install pairing record: {}", e))?;
                             }

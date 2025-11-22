@@ -195,3 +195,21 @@ impl PlumeFrame {
         result
     }
 }
+
+// MARK: - Text Selection Dialog
+impl PlumeFrame {
+    pub fn create_text_selection_dialog(
+        &self, title: &str,
+        label: &str,
+        choices: Vec<String>,
+    ) -> Result<i32, String> {
+        let choice_refs: Vec<&str> = choices.iter().map(|s| s.as_str()).collect();
+        let dialog = SingleChoiceDialog::builder(&self.frame, label, title, &choice_refs).build();
+        let rc = dialog.show_modal();
+        if rc == ID_OK as i32 {
+            Ok(dialog.get_selection())
+        } else {
+            Err("Dialog cancelled".to_string())
+        }
+    }
+}

@@ -1,8 +1,10 @@
 use std::fmt;
+use std::path::PathBuf;
 
 use idevice::usbmuxd::{Connection, UsbmuxdAddr, UsbmuxdDevice};
 use idevice::lockdown::LockdownClient;
 use idevice::IdeviceService;
+use idevice::utils::installation;
 
 use crate::Error;
 use idevice::usbmuxd::UsbmuxdConnection;
@@ -10,6 +12,8 @@ use idevice::house_arrest::HouseArrestClient;
 use idevice::afc::opcode::AfcFopenMode;
 
 pub const CONNECTION_LABEL: &str = "plume_info";
+pub const INSTALLATION_LABEL: &str = "plume_install";
+pub const HOUSE_ARREST_LABEL: &str = "plume_house_arrest";
 
 macro_rules! get_dict_string {
     ($dict:expr, $key:expr) => {
@@ -56,12 +60,42 @@ impl Device {
         let mut pairing_file = usbmuxd.get_pair_record(&self.uuid).await?;
         pairing_file.udid = Some(self.uuid.clone());
 
-        let provider = self.usbmuxd_device.to_provider(UsbmuxdAddr::default(), CONNECTION_LABEL);
+        let provider = self.usbmuxd_device.to_provider(UsbmuxdAddr::default(), HOUSE_ARREST_LABEL);
         let hc = HouseArrestClient::connect(&provider).await?;
         let mut ac = hc.vend_documents(identifier.clone()).await?;
         let mut f = ac.open(path, AfcFopenMode::Wr).await?;
 
         f.write(&pairing_file.serialize().unwrap()).await?;
+
+        Ok(())
+    }
+
+    pub async fn install_app<F, Fut>(&self, app_path: &PathBuf, progress_callback: F) -> Result<(), Error>
+    where
+        F: FnMut(i32) -> Fut + Send + Clone + 'static,
+        Fut: std::future::Future<Output = ()> + Send,
+    {
+        let provider = self.usbmuxd_device.to_provider(
+            UsbmuxdAddr::from_env_var().unwrap_or_default(),
+            INSTALLATION_LABEL,
+        );
+
+        let callback = move |(progress, _): (u64, ())| {
+            let mut cb = progress_callback.clone();
+            async move {
+                cb(progress as i32).await;
+            }
+        };
+
+        let state = ();
+
+        installation::install_package_with_callback(
+            &provider,
+            app_path,
+            None,
+            callback,
+            state,
+        ).await?;
 
         Ok(())
     }
