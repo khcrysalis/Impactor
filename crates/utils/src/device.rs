@@ -5,6 +5,9 @@ use idevice::lockdown::LockdownClient;
 use idevice::IdeviceService;
 
 use crate::Error;
+use idevice::usbmuxd::UsbmuxdConnection;
+use idevice::house_arrest::HouseArrestClient;
+use idevice::afc::opcode::AfcFopenMode;
 
 pub const CONNECTION_LABEL: &str = "plume_info";
 
@@ -45,6 +48,22 @@ impl Device {
         let mut lockdown = LockdownClient::connect(&device.to_provider(UsbmuxdAddr::default(), CONNECTION_LABEL)).await?;
         let values = lockdown.get_value(None, None).await?;
         Ok(get_dict_string!(values, "DeviceName"))
+    }
+
+    pub async fn install_pairing_record(&self, identifier: &String, path: &str) -> Result<(), Error> {
+        let mut usbmuxd = UsbmuxdConnection::default().await?;
+
+        let mut pairing_file = usbmuxd.get_pair_record(&self.uuid).await?;
+        pairing_file.udid = Some(self.uuid.clone());
+
+        let provider = self.usbmuxd_device.to_provider(UsbmuxdAddr::default(), CONNECTION_LABEL);
+        let hc = HouseArrestClient::connect(&provider).await?;
+        let mut ac = hc.vend_documents(identifier.clone()).await?;
+        let mut f = ac.open(path, AfcFopenMode::Wr).await?;
+
+        f.write(&pairing_file.serialize().unwrap()).await?;
+
+        Ok(())
     }
 }
 

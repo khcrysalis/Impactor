@@ -14,13 +14,13 @@ pub use options::{
 pub use package::Package; // Package helper
 pub use bundle::{Bundle, BundleType}; // Bundle helper
 pub use device::Device; // Device helper
+pub use signer::Signer; // Signer
 
 use thiserror::Error as ThisError;
 #[derive(Debug, ThisError)]
 pub enum Error {
     #[error("Info.plist not found")]
     BundleInfoPlistMissing,
-
     #[error("Zip error: {0}")]
     Zip(#[from] zip::result::ZipError),
     #[error("Info.plist not found")]
@@ -33,6 +33,10 @@ pub enum Error {
     GrandSlam(#[from] grand_slam::Error),
     #[error("Idevice error: {0}")]
     Idevice(#[from] idevice::IdeviceError),
+    #[error("Codesign error: {0}")]
+    Codesign(#[from] grand_slam::AppleCodesignError),
+    #[error("Other error: {0}")]
+    Other(String),
 }
 
 pub trait PlistInfoTrait {

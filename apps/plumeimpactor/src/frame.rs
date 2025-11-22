@@ -7,22 +7,19 @@ use std::{
 };
 
 use grand_slam::{
-    AnisetteConfiguration, CertificateIdentity, MachO, MobileProvision, SettingsScope, SigningSettings, UnifiedSigner, auth::Account, developer::DeveloperSession
+    AnisetteConfiguration, CertificateIdentity, auth::Account, developer::DeveloperSession
 };
 
 use idevice::{
-    IdeviceService,
-    house_arrest::HouseArrestClient,
     utils::installation,
     usbmuxd::{UsbmuxdAddr, UsbmuxdConnection, UsbmuxdListenEvent},
 };
 
-use utils::{Bundle, BundleType, Device, Package, PlistInfoTrait, SignerApp, SignerMode, SignerOptions};
+use utils::{Device, Package, PlistInfoTrait, Signer, SignerMode};
 
-use plist::Value;
 use wxdragon::prelude::*;
 use futures::StreamExt;
-use tokio::{fs, runtime::Builder, sync::mpsc};
+use tokio::{runtime::Builder, sync::mpsc};
 
 use crate::{
     get_data_path,
@@ -392,8 +389,8 @@ impl PlumeFrame {
                             .ok_or("No teams available for the Apple ID account.")?
                             .team_id;
 
-                        let cert_identity: CertificateIdentity = if signer_settings.mode == SignerMode::Export {
-                            CertificateIdentity { cert: None, key: None, machine_id: None, p12_data: None, serial_number: None }
+                        let mut signer: Signer = if signer_settings.mode == SignerMode::Export {
+                            Signer::adhoc(signer_settings.clone())
                         } else {
                             let cert_identity = CertificateIdentity::new_with_session(
                                 &session,
@@ -401,8 +398,11 @@ impl PlumeFrame {
                                 None,
                                 team_id,
                             ).await.map_err(|e| e.to_string())?;
-
-                            cert_identity
+                            
+                            Signer::new(
+                                Some(cert_identity),
+                                signer_settings.clone(),
+                            )
                         };
 
                         session.qh_ensure_device(
@@ -417,181 +417,20 @@ impl PlumeFrame {
                         
                         let bundle = package.get_package_bundle()
                             .map_err(|e| format!("Failed to get package bundle: {}", e))?;
-                        let bundles = bundle.collect_bundles_sorted()
-                            .map_err(|e| format!("Failed to collect bundles: {}", e))?;
-                        
-                        let bundle_identifier = bundle.get_bundle_identifier()
-                            .ok_or("Failed to get bundle identifier from package.")?;
 
-                        if let Some(new_name) = signer_settings.custom_name.as_ref() {
-                            bundle.set_name(new_name).map_err(|e| format!("Failed to set new name: {}", e))?;
-                        }
+                        signer.modify_bundle(&bundle, &Some(team_id.clone()))
+                            .await
+                            .map_err(|e| format!("Failed to modify bundle: {}", e))?;
 
-                        if let Some(new_version) = signer_settings.custom_version.as_ref() {
-                            bundle.set_version(new_version).map_err(|e| format!("Failed to set new version: {}", e))?;
-                        }
-
-                        if signer_settings.features.support_minimum_os_version {
-                            bundle.set_info_plist_key("MinimumOSVersion", "7.0").map_err(|e| format!("Failed to set minimum OS version: {}", e))?;
-                        }
-
-                        if signer_settings.features.support_file_sharing {
-                            bundle.set_info_plist_key("UIFileSharingEnabled", true).map_err(|e| format!("Failed to set file sharing: {}", e))?;
-                            bundle.set_info_plist_key("UISupportsDocumentBrowser", true).map_err(|e| format!("Failed to set document opening: {}", e))?;
-                        }
-
-                        if signer_settings.features.support_ipad_fullscreen {
-                            bundle.set_info_plist_key("UIRequiresFullScreen", true).map_err(|e| format!("Failed to set iPad fullscreen: {}", e))?;
-                        }
-
-                        if signer_settings.features.support_game_mode {
-                            bundle.set_info_plist_key("GCSupportsGameMode", true).map_err(|e| format!("Failed to set game mode: {}", e))?;
-                        }
-
-                        if signer_settings.features.support_pro_motion {
-                            bundle.set_info_plist_key("CADisableMinimumFrameDurationOnPhone", true).map_err(|e| format!("Failed to set document opening: {}", e))?;
-                        }
-
-                        if signer_settings.mode != SignerMode::Export {
-                            if signer_settings.custom_identifier.is_none() {
-                                signer_settings.custom_identifier = Some(format!("{bundle_identifier}.{team_id}"));
-                            }
-                        }
-
-                        if let Some(new_identifier) = signer_settings.custom_identifier.as_ref() {
-                            for embedded_bundle in &bundles {
-                                embedded_bundle.set_matching_identifier(
-                                    &bundle_identifier,
-                                    &new_identifier,
-                                ).map_err(|e| format!("Failed to set matching identifier: {}", e))?;
-                            }
-                        }
-
-                        if 
-                            signer_settings.app == SignerApp::SideStore 
-                            || signer_settings.app == SignerApp::AltStore 
-                            || signer_settings.app == SignerApp::LiveContainerAndSideStore 
-                        {
-                            if let Some(p12_data) = &cert_identity.p12_data {
-                                if let Some(serial_number) = &cert_identity.serial_number {
-                                    if signer_settings.app == SignerApp::LiveContainerAndSideStore {
-                                        // TODO: we can probably check if the framework bundle identifier is a certain value for finding the correct bundle
-                                        let sidestore_plist_path = bundle.bundle_dir().join("Frameworks/SideStoreApp.framework/Info.plist");
-                                        let mut plist = Value::from_file(sidestore_plist_path.clone()).map_err(|e| format!("Failed to load p12: {e}"))?;
-                                        if let Some(dict) = plist.as_dictionary_mut() {
-                                            dict.insert("ALTCertificateID".to_string(), (&**serial_number).into());
-                                        }
-                                        plist.to_file_xml(&sidestore_plist_path).map_err(|e| format!("Failed to set cert serial: {}", e))?;
-                                        fs::write(bundle.bundle_dir().join("Frameworks/SideStoreApp.framework/ALTCertificate.p12"), p12_data)
-                                            .await.map_err(|e| format!("Failed to write p12: {}", e))?;
-                                    } else {
-                                        bundle.set_info_plist_key("ALTCertificateID", &**serial_number)
-                                            .map_err(|e| format!("Failed to set cert serial: {}", e))?;
-                                        fs::write(bundle.bundle_dir().join("ALTCertificate.p12"), p12_data)
-                                            .await.map_err(|e| format!("Failed to write p12: {}", e))?;
-                                    }
-
-                                }
-                            }
-                        }
-
-                        
                         sender_clone.send(PlumeFrameMessage::InstallProgress(30, Some(format!("Registering {}...", bundle.get_name().unwrap_or_default())))).ok();
-                        let mut provisionings: Vec<MobileProvision> = Vec::new();
 
-
-                        if signer_settings.mode != SignerMode::Export {
-                            for sub_bundle in &bundles {
-                                if signer_settings.embedding.single_profile && sub_bundle.bundle_dir() != bundle.bundle_dir() {
-                                    continue;
-                                }
-                                
-                                if 
-                                    *sub_bundle.bundle_type() != BundleType::AppExtension &&
-                                    *sub_bundle.bundle_type() != BundleType::App 
-                                {
-                                    continue;
-                                }
-
-                                let bundle_executable_name = sub_bundle.get_executable()
-                                    .ok_or("Failed to get executable from bundle.")?;
-                                
-                                let bundle_executable_path = sub_bundle.bundle_dir().join(&bundle_executable_name);
-                                
-                                let macho = MachO::new(&bundle_executable_path)
-                                    .map_err(|e| format!("Failed to read Mach-O binary: {}", e))?;
-                                
-                                let id = sub_bundle.get_bundle_identifier()
-                                    .ok_or("Failed to get bundle identifier from bundle.")?;
-                                
-                                println!("{}", id);
-
-                                session.qh_ensure_app_id(team_id, &sub_bundle.get_name().unwrap_or_default(), &id)
-                                    .await
-                                    .map_err(|e| format!("Failed to ensure app ID: {}", e))?;
-                                
-                                let capabilities = session.v1_list_capabilities(team_id)
-                                    .await
-                                    .map_err(|e| format!("Failed to list capabilities: {}", e))?;
-                                
-                                let app_id_id = session.qh_get_app_id(team_id, &id)
-                                    .await
-                                    .map_err(|e| e.to_string())?
-                                    .ok_or("Failed to get ensured app ID.")?;
-
-                                if let Some(caps) = macho.capabilities_for_entitlements(&capabilities.data) {
-                                    session.v1_update_app_id(team_id, &id, caps)
-                                        .await
-                                        .map_err(|e| format!("Failed to enable capabilities: {}", e))?;
-                                }
-                                
-                                if let Some(app_groups) = macho.app_groups_for_entitlements() {
-                                    let mut app_group_ids: Vec<String> = Vec::new();
-                                    for group in &app_groups {
-                                        let group = format!("{group}.{team_id}");
-                                        let group_id = session.qh_ensure_app_group(team_id, &group, &group)
-                                            .await
-                                            .map_err(|e| format!("Failed to ensure app group: {}", e))?;
-                                        app_group_ids.push(group_id.application_group);
-                                    }
-
-                                    if signer_settings.app == SignerApp::SideStore || signer_settings.app == SignerApp::AltStore {
-                                        bundle.set_info_plist_key("ALTAppGroups", Value::Array(app_groups.iter().map(|s| Value::String(format!("{s}.{team_id}"))).collect()))
-                                            .map_err(|e| format!("Failed to set ALTAppGroups: {}", e))?;
-                                    }
-
-                                    session.qh_assign_app_group(team_id, &app_id_id.app_id_id, &app_group_ids)
-                                        .await
-                                        .map_err(|e| format!("Failed to add app group to app ID: {}", e))?;
-                                }
-
-                                let profiles = session.qh_get_profile(team_id, &app_id_id.app_id_id)
-                                    .await
-                                    .map_err(|e| format!("Failed to list profiles: {}", e))?;
-
-                                let profile_data = profiles.provisioning_profile.encoded_profile;
-
-                                fs::write(bundle.bundle_dir().join("embedded.mobileprovision"), &profile_data).await
-                                    .map_err(|e| format!("Failed to write provisioning profile: {}", e))?;
-
-                                let mobile_provision = MobileProvision::load_with_bytes(profile_data.as_ref().to_vec())
-                                    .map_err(|e| format!("Failed to load mobile provision: {}", e))?;
-                                
-                                provisionings.push(mobile_provision);
-                            }
-
-                        }
+                        signer.register_bundle(&bundle, &session, &team_id)
+                            .await
+                            .map_err(|e| format!("Failed to register bundle: {}", e))?;
 
                         sender_clone.send(PlumeFrameMessage::InstallProgress(50, Some(format!("Signing {}...", bundle.get_name().unwrap_or_default())))).ok();
 
-
-                        let signer = Signer::new(
-                            Some(cert_identity),
-                            signer_settings.clone(),
-                            provisionings,
-                        );
-
-                        signer.sign_bundle(&bundle)
+                        signer.sign_bundle(&bundle).await
                             .map_err(|e| format!("Failed to sign bundle: {}", e))?;
                         
                         if signer_settings.mode != SignerMode::Export {
@@ -620,33 +459,10 @@ impl PlumeFrame {
 
                         if signer_settings.app.supports_pairing_file() {
                             if let Some(pairing_file_bundle_path) = signer_settings.app.pairing_file_path() {
-                                let mut usbmuxd = UsbmuxdConnection::default()
+                                sender_clone.send(PlumeFrameMessage::InstallProgress(90, Some("Installing pairing record...".to_string()))).ok();
+                                device.install_pairing_record(&signer.options.custom_identifier.unwrap(), &pairing_file_bundle_path)
                                     .await
-                                    .map_err(|e| format!("usbmuxd connect error: {e}"))?;
-
-                                let mut pairing_file = usbmuxd.get_pair_record(&device.uuid)
-                                    .await
-                                    .map_err(|e| format!("Failed to get pairing record: {}", e))?;
-
-                                pairing_file.udid = Some(device.uuid.clone());
-
-                                let provider = usbmuxd_device.to_provider(UsbmuxdAddr::default(), "baller");
-
-                                let hc = HouseArrestClient::connect(&provider)
-                                    .await
-                                    .map_err(|e| format!("Failed to connect to House Arrest service: {}", e))?;
-
-                                let mut ac = hc.vend_documents(signer_settings.custom_identifier.unwrap())
-                                    .await
-                                    .map_err(|e| format!("Failed to vend documents: {}", e))?;
-
-                                let mut f = ac.open(pairing_file_bundle_path, idevice::afc::opcode::AfcFopenMode::Wr)
-                                    .await
-                                    .map_err(|e| format!("Failed to open pairing file: {}", e))?;
-
-                                f.write(&pairing_file.serialize().unwrap())
-                                    .await
-                                    .map_err(|e| format!("Failed to write pairing file: {}", e))?;
+                                    .map_err(|e| format!("Failed to install pairing record: {}", e))?;
                             }
                         }
 
@@ -661,7 +477,6 @@ impl PlumeFrame {
                 });
             }
         });
-
         
         // MARK: Login Dialog "Next" Button
 
@@ -744,118 +559,4 @@ pub fn run_login_flow(
     ));
 
     account_result.map_err(|e| e.to_string())
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-pub struct Signer {
-    certificate: Option<CertificateIdentity>,
-    settings: SignerOptions,
-    provisioning_files: Vec<MobileProvision>,
-}
-
-impl Signer {
-    pub fn new(
-        certificate: Option<CertificateIdentity>,
-        settings: SignerOptions,
-        provisioning_files: Vec<MobileProvision>,
-    ) -> Self {
-        Self {
-            certificate,
-            settings,
-            provisioning_files,
-        }
-    }
-
-    pub fn sign_path(&self, path: PathBuf) -> Result<(), crate::Error> {
-        let bundle = Bundle::new(path)?;
-        self.sign_bundle(&bundle)
-    }
-
-    pub fn sign_bundle(&self, bundle: &Bundle) -> Result<(), crate::Error> {
-        let bundles = bundle.collect_bundles_sorted()?;
-        
-        for bundle in &bundles {
-            let mut settings = self.build_base_settings()?;
-
-            
-            let entitlements_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict/>
-</plist>
-"#.to_string();
-
-            settings.set_entitlements_xml(
-                SettingsScope::Main,
-                entitlements_xml
-            )?;
-
-            if *bundle.bundle_type() == BundleType::AppExtension || *bundle.bundle_type() == BundleType::App {
-                let mut matched_prov = None;
-
-                for prov in &self.provisioning_files {
-                    if let (Some(bundle_id), Some(team_id)) = (bundle.get_bundle_identifier(), prov.bundle_id()) {
-                        if team_id == bundle_id {
-                            matched_prov = Some(prov);
-                            break;
-                        }
-                    }
-                }
-
-                let mut prov = matched_prov.unwrap_or_else(|| &self.provisioning_files[0]).clone();
-
-                if let Some(bundle_id) = bundle.get_bundle_identifier() {
-                    prov.replace_wildcard_in_entitlements(&bundle_id);
-                }
-
-                if let Some(bundle_executable) = bundle.get_executable() {
-                    let binary_path = bundle.bundle_dir().join(bundle_executable);
-                    prov.merge_entitlements(binary_path).ok(); // if it fails we can ignore 
-                }
-
-                std::fs::write(bundle.bundle_dir().join("embedded.mobileprovision"), &prov.provision_data)?;
-
-                if let Ok(ent_xml) = prov.entitlements_as_bytes() {
-                    settings.set_entitlements_xml(
-                        SettingsScope::Main, 
-                        String::from_utf8_lossy(&ent_xml)
-                    )?;
-                }
-            }
-            
-            UnifiedSigner::new(settings).sign_path_in_place(bundle.bundle_dir())?;
-        }
-
-        if let Some(cert) = &self.certificate {
-            if let Some(key) = &cert.key {
-                key.finish()?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn build_base_settings(&self) -> Result<SigningSettings<'_>, crate::Error> {
-        let mut settings = SigningSettings::default();
-        if let Some(cert) = &self.certificate {
-            cert.load_into_signing_settings(&mut settings)?;
-            settings.set_team_id_from_signing_certificate();
-        }
-        settings.set_for_notarization(false);
-        settings.set_shallow(false);
-        settings.set_team_id_from_signing_certificate();
-        Ok(settings)
-    }
 }

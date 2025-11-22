@@ -13,3 +13,5 @@ thiserror.workspace = true
 uuid.workspace = true
 plist.workspace = true
 grand_slam = { path = "../grand_slam" }
+tokio.workspace = true
+futures = "0.3.31"

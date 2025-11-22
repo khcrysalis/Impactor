@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use crate::auth::account::request::RequestType;
 
-pub use apple_codesign::{SigningSettings, SettingsScope, UnifiedSigner};
+pub use apple_codesign::{SigningSettings, SettingsScope, UnifiedSigner, AppleCodesignError};
 pub use omnisette::AnisetteConfiguration;
 
 pub use utils::MachO;

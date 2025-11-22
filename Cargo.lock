@@ -4636,10 +4636,12 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 name = "utils"
 version = "0.0.1"
 dependencies = [
+ "futures",
  "grand_slam",
  "idevice",
  "plist",
  "thiserror 2.0.16",
+ "tokio",
  "uuid",
  "zip 4.6.1",
 ]
