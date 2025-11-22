@@ -51,7 +51,7 @@ pub fn create_login_dialog(parent: &Window) -> LoginDialog {
 
     cancel_button.on_click({
         let dialog = dialog.clone();
-        move |_| dialog.end_modal(ID_CANCEL as i32)
+        move |_| dialog.hide()
     });
 
     LoginDialog {
