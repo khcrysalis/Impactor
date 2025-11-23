@@ -53,17 +53,14 @@ impl Package {
 
         let info_plist_path = archive_entries
             .iter()
-            .find(|entry| entry.starts_with("Payload/") && entry.ends_with(".app/Info.plist"))
+            .find(|entry| entry.starts_with("Payload/") && entry.ends_with("/Info.plist") && entry.matches('/').count() == 2)
             .ok_or(Error::PackageInfoPlistMissing)?;
 
         let mut plist_file = archive.by_name(info_plist_path)?;
         let mut plist_data = Vec::new();
         plist_file.read_to_end(&mut plist_data)?;
 
-        let plist = plist::Value::from_reader_xml(&*plist_data)
-            .map_err(|_| Error::PackageInfoPlistMissing)?;
-
-        plist.as_dictionary().cloned().ok_or(Error::PackageInfoPlistMissing)
+        Ok(plist::from_bytes(&plist_data)?)
     }
     
     pub fn get_package_bundle(&self) -> Result<Bundle, Error> {
