@@ -470,8 +470,12 @@ impl PlumeFrame {
                             .map_err(|e| format!("Failed to sign bundle: {}", e))?;
 
                         if signer_settings.mode == SignerMode::SignAndInstallMacOS {
+                            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
                             device.install_app_mac(&bundle.bundle_dir()).await
                                 .map_err(|e| format!("Failed to install mac app: {}", e))?;
+                            
+                            #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+                            return Err("Mac installation not supported on this platform".to_string());
                         } else {
                             let progress_callback = {
                                 let sender = sender_clone.clone();
