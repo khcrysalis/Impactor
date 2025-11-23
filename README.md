@@ -12,7 +12,7 @@ WIP open-source, cross-platform, and feature rich iOS/tvOS sideloading applicati
 - Simple customization options for the app.
 - Generates P12 for SideStore/AltStore to use, similar to how Altserver works.
 - Automatically populate pairing files for specific apps like SideStore, Antrag, and Protokolle.
-- Proper* entitlement handling and can register app plugins.
+- *Proper* entitlement handling and can register app plugins.
 
 ## Download
 
@@ -31,16 +31,18 @@ The project is seperated in multiple modules, all serve single or multiple uses 
 
 ## Building
 
-Building is going to be a bit convoluted for each platform, each having their own unique specifications, but the best reference for building should be looking at how the our [GitHub actions](./github/workflows/build.yml) does it.
+Building is going to be a bit convoluted for each platform, each having their own unique specifications, but the best reference for building should be looking at how [GitHub actions](./.github/workflows/build.yml) does it.
+
 
 You need:
-- Rust
-- CMake (and a c++ compiler)
+- [Rust](https://rustup.rs/)
+- [CMake](https://cmake.org/download/) (and a c++ compiler)
 
 ```sh
 # Applies our patches in ./patches 
 cargo install patch-crate
-cargo fetch --locked && cargo patch-crate --force
+cargo patch-crate --force && cargo fetch --locked
+
 # Building / testing
 cargo run --bin plumeimpactor
 ```
@@ -58,13 +60,17 @@ sudo dnf install clang-devel pkg-config gtk3-devel libpng-devel libjpeg-devel me
 ```
 
 #### macOS Requirements
-- Xcode or Command Line Tools
+
+```sh
+# Xcode Command Line Tools
+xcode-select --install
+```
 
 #### Windows Requirements
 
-- Visual Studio 2019 or later (Community/Professional/Build Tools)
-- Windows 10 or 11 SDK
-- x64 Native Tools Command Prompt for VS 2019/2022
+Download and install [Visual Studio 2022 Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) with:
+- Desktop development with C++ workload
+- Windows 10/11 SDK
 
 ## Acknowledgements
 
@@ -76,4 +82,4 @@ sudo dnf install clang-devel pkg-config gtk3-devel libpng-devel libjpeg-devel me
 ## License
 
 Project is licensed under the MIT license. You can see the full details of the license [here](https://github.com/khcrysalis/PlumeImpactor/blob/main/LICENSE).
- * Some components are licensed under a dife
+- Some components may be licensed under different licenses, see their respective directories for details.
