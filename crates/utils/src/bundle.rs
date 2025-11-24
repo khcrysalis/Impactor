@@ -182,24 +182,9 @@ fn collect_embeded_bundles_from_dir(dir: &PathBuf) -> Result<Vec<Bundle>, Error>
         let entry = entry.map_err(Error::Io)?;
         let path = entry.path();
 
-        if path.file_name()
-            .and_then(|n| n.to_str())
-            .map_or(false, |n| n.ends_with(".storyboardc"))
-        {
-            continue;
-        }
-
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
             if is_bundle_dir(name) {
                 if let Ok(bundle) = Bundle::new(&path) {
-                    if bundle.info_plist_file.parent()
-                        .and_then(|p| p.file_name())
-                        .and_then(|n| n.to_str())
-                        .map_or(false, |n| n.ends_with(".storyboardc"))
-                    {
-                        continue;
-                    }
-
                     bundles.push(bundle.clone());
 
                     if bundle._type != BundleType::App {
