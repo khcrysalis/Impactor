@@ -26,7 +26,7 @@ Open-source, cross-platform, and feature rich iOS sideloading application. Suppo
 
 ## Download
 
-##### ETA SON
+Visit [releases](https://github.com/khcrysalis/PlumeImpactor/releases) and get the latest version for your computer.
 
 ## Structure
 

@@ -2922,7 +2922,7 @@ dependencies = [
 
 [[package]]
 name = "plume_core"
-version = "0.0.1"
+version = "1.0.0"
 dependencies = [
  "aes",
  "apple-codesign",
@@ -2956,7 +2956,7 @@ dependencies = [
 
 [[package]]
 name = "plume_utils"
-version = "0.0.1"
+version = "1.0.0"
 dependencies = [
  "futures",
  "idevice",
@@ -2970,7 +2970,7 @@ dependencies = [
 
 [[package]]
 name = "plumeimpactor"
-version = "0.0.1"
+version = "1.0.0"
 dependencies = [
  "embed-manifest",
  "futures",
@@ -2989,7 +2989,7 @@ dependencies = [
 
 [[package]]
 name = "plumesign"
-version = "0.0.1"
+version = "1.0.0"
 dependencies = [
  "clap",
  "plist",
