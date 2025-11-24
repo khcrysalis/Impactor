@@ -62,15 +62,19 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
     let support_older_versions_checkbox = CheckBox::builder(&panel)
         .with_label("Try to support older versions (7+)")
         .build();
+    support_older_versions_checkbox.set_tooltip("Tries to support older iOS versions by setting the MinimumOSVersion key to *OS 7.");
     let support_file_sharing_checkbox = CheckBox::builder(&panel)
         .with_label("Force File Sharing")
         .build();
+    support_file_sharing_checkbox.set_tooltip("Enables file sharing for the app by setting the UIFileSharingEnabled & UISupportsDocumentBrowser key to true.");
     let ipad_fullscreen_checkbox = CheckBox::builder(&panel)
         .with_label("Force iPad Fullscreen")
         .build();
+    ipad_fullscreen_checkbox.set_tooltip("Forces the app to run in fullscreen on iPad by setting the UIRequiresFullScreen key to true.");
     let game_mode_checkbox = CheckBox::builder(&panel)
         .with_label("Force Game Mode")
         .build();
+    game_mode_checkbox.set_tooltip("Forces the app to run in Game Mode by setting the GCSupportsGameMode key to true.");
     let pro_motion_checkbox = CheckBox::builder(&panel)
         .with_label("Force Pro Motion")
         .build();
@@ -80,6 +84,7 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
     let skip_registering_extensions_checkbox = CheckBox::builder(&panel)
         .with_label("Only Register Main Bundle")
         .build();
+    skip_registering_extensions_checkbox.set_tooltip("Only registers the main bundle for the app, skipping any extensions. This saves you from making multiple app ids.");
     checkbox_sizer.add(&general_label, 0, SizerFlag::Bottom, 6);
     checkbox_sizer.add(&support_older_versions_checkbox, 0, SizerFlag::Expand | SizerFlag::Left, 8);
     checkbox_sizer.add(&support_file_sharing_checkbox, 0, SizerFlag::Expand | SizerFlag::Top | SizerFlag::Left, 8);
