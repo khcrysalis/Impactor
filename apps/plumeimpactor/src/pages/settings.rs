@@ -153,15 +153,6 @@ impl PlumeFrame {
         sizer.add_spacer(16);
 
         sizer.add(
-            &StaticText::builder(&dialog)
-            .with_label("The 2FA code is only sent to Apple!")
-            .build(),
-            0,
-            SizerFlag::All,
-            12,
-        );
-
-        sizer.add(
             &StaticText::builder(&dialog).with_label(label).build(),
             0,
             SizerFlag::All,
