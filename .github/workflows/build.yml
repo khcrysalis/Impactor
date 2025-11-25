@@ -97,6 +97,9 @@ jobs:
             --icon-file ${{ env.BUNDLE_NAME }}.png \
             --output appimage
 
+          # Clean up the linuxdeploy tool so it is not included in the artifact upload
+          rm linuxdeploy-x86_64.AppImage
+
           mv *.AppImage build/out/
 
       - name: Upload Bundles
