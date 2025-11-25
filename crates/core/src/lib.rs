@@ -40,8 +40,6 @@ pub enum Error {
     
     #[error("Authentication SRP error {0}: {1}")]
     AuthSrpWithMessage(i64, String),
-    #[error("Authentication SRP error")]
-    AuthSrp,
     #[error("Authentication extra step required: {0}")]
     ExtraStep(String),
     #[error("Bad 2FA code")]

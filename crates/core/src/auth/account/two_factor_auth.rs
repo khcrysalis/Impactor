@@ -17,8 +17,11 @@ impl Account {
             .send()
             .await?;
 
-        if !res.status().is_success() {
-            return Err(Error::AuthSrp);
+        let status_code = res.status();
+        // println!("2FA send status: {}", status_code);
+
+        if !status_code.is_success() {
+            return Err(Error::AuthSrpWithMessage(status_code.as_u16() as i64, "Failed to send 2FA to devices".to_string()));
         }
 
         return Ok(LoginState::Needs2FAVerification);
@@ -41,8 +44,11 @@ impl Account {
             .send()
             .await?;
 
-        if !res.status().is_success() {
-            return Err(Error::AuthSrp);
+        let status_code = res.status();
+        // println!("SMS 2FA send status: {}", status_code);
+
+        if !status_code.is_success() {
+            return Err(Error::AuthSrpWithMessage(status_code.as_u16() as i64, "Failed to send SMS 2FA to devices".to_string()));
         }
 
         return Ok(LoginState::NeedsSMS2FAVerification(body));
