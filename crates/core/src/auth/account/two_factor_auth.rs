@@ -8,17 +8,21 @@ use crate::auth::{Account, AuthenticationExtras, LoginState, PhoneNumber, Verify
 
 impl Account {
     pub async fn send_2fa_to_devices(&self) -> Result<LoginState, Error> {
-        let headers = self.build_2fa_headers(false);
+        let headers = self.build_2fa_headers(false).await;
+        
+        println!("2FA Headers: {:?}", headers);
 
         let res = self
             .client
             .get("https://gsa.apple.com/auth/verify/trusteddevice")
-            .headers(headers.await)
+            .headers(headers)
             .send()
             .await?;
 
         let status_code = res.status();
-        // println!("2FA send status: {}", status_code);
+        let response_text = res.text().await?;
+        println!("2FA Response Text: {}", response_text);
+        println!("2FA send status: {}", status_code);
 
         if !status_code.is_success() {
             return Err(Error::AuthSrpWithMessage(status_code.as_u16() as i64, "Failed to send 2FA to devices".to_string()));
@@ -28,7 +32,9 @@ impl Account {
     }
 
     pub async fn send_sms_2fa_to_devices(&self, phone_id: u32) -> Result<LoginState, Error> {
-        let headers = self.build_2fa_headers(true);
+        let headers = self.build_2fa_headers(true).await;
+        
+        println!("SMS 2FA Headers: {:?}", headers);
 
         let body = VerifyBody {
             phone_number: PhoneNumber { id: phone_id },
@@ -39,13 +45,15 @@ impl Account {
         let res = self
             .client
             .put("https://gsa.apple.com/auth/verify/phone/")
-            .headers(headers.await)
+            .headers(headers)
             .json(&body)
             .send()
             .await?;
 
         let status_code = res.status();
-        // println!("SMS 2FA send status: {}", status_code);
+        let response_text = res.text().await?;
+        println!("SMS 2FA Response Text: {}", response_text);
+        println!("SMS 2FA send status: {}", status_code);
 
         if !status_code.is_success() {
             return Err(Error::AuthSrpWithMessage(status_code.as_u16() as i64, "Failed to send SMS 2FA to devices".to_string()));
