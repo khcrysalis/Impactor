@@ -34,12 +34,10 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      # Install system headers required for compilation.
-      # Note: Actual runtime libraries will be bundled by linuxdeploy in a later step.
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install libgtk-3-dev libpng-dev libjpeg-dev libgl1-mesa-dev libglu1-mesa-dev libxkbcommon-dev libexpat1-dev libtiff-dev imagemagick
+          sudo apt-get install libgtk-3-dev libpng-dev libjpeg-dev libgl1-mesa-dev libglu1-mesa-dev libxkbcommon-dev libexpat1-dev libtiff-dev
 
       - name: Build Dependencies
         run: |
@@ -53,9 +51,7 @@ jobs:
 
       - name: Generate Runtime Metadata
         run: |
-          # Create a compliant .desktop entry required by linuxdeploy.
-          # This is necessary because we are no longer using cargo-bundle to generate metadata.
-          cat > ${{ env.BUNDLE_NAME }}.desktop <<EOF
+          cat > build/${{ env.BUNDLE_NAME }}.desktop <<EOF
           [Desktop Entry]
           Type=Application
           Name=${{ env.BUNDLE_NAME }}
@@ -64,32 +60,15 @@ jobs:
           Categories=Utility;
           Terminal=false
           EOF
-          
-          # Resolve application icon.
-          # linuxdeploy requires a valid icon file. We attempt to locate one in standard
-          # directories. If unavailable, a generic placeholder is downloaded to prevent build failure.
-          if [ -f "package/linux/icon.png" ]; then
-            cp "package/linux/icon.png" "${{ env.BUNDLE_NAME }}.png"
-          elif [ -f "assets/icon.png" ]; then
-            cp "assets/icon.png" "${{ env.BUNDLE_NAME }}.png"
-          else
-            wget -O "${{ env.BUNDLE_NAME }}.png" https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Rust_programming_language_black_logo.svg/1024px-Rust_programming_language_black_logo.svg.png
-          fi
 
-          # Resize icon to 512x512.
-          # linuxdeploy fails if the icon is larger than 512x512. We use imagemagick (convert)
-          # to ensure the icon is within valid bounds.
-          convert "${{ env.BUNDLE_NAME }}.png" -resize 512x512 "${{ env.BUNDLE_NAME }}.png"
+          cp "package/linux/icon.png" "build/${{ env.BUNDLE_NAME }}.png"
 
       - name: Bundle with LinuxDeploy
         run: |
-          # Download and prepare linuxdeploy
+          cd build
           wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           chmod +x linuxdeploy-x86_64.AppImage
 
-          # Generate the AppImage.
-          # This tool automatically detects shared library dependencies (e.g., libjpeg.so.8)
-          # and bundles them into the AppImage, ensuring portability across Linux distributions.
           ./linuxdeploy-x86_64.AppImage --appimage-extract-and-run \
             --appdir AppDir \
             --executable target/release/${{ env.BINARY_NAME }} \
@@ -97,10 +76,10 @@ jobs:
             --icon-file ${{ env.BUNDLE_NAME }}.png \
             --output appimage
 
-          # Clean up the linuxdeploy tool so it is not included in the artifact upload
           rm linuxdeploy-x86_64.AppImage
 
-          mv *.AppImage build/out/
+          mv *.AppImage out/
+          cd ..
 
       - name: Upload Bundles
         uses: actions/upload-artifact@v4
