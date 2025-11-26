@@ -5246,8 +5246,6 @@ checksum = "ea2f10b9bb0928dfb1b42b65e1f9e36f7f54dbdf08457afefb38afcdec4fa2bb"
 [[package]]
 name = "wxdragon"
 version = "0.9.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "387582e9b06f1665c4807211e8a768911dfca14bd5fd4920456b4ceb96b82720"
 dependencies = [
  "bitflags 2.9.4",
  "log",
