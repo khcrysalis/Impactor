@@ -67,16 +67,26 @@ jobs:
         run: |
           cd build
           wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage
+          wget https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
+          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-gtk.sh
+
+          export APPDIR=AppDir
+          export LINUXDEPLOY=$(pwd)/linuxdeploy-x86_64.AppImage
 
           ./linuxdeploy-x86_64.AppImage --appimage-extract-and-run \
-            --appdir AppDir \
+            --appdir "$APPDIR" \
             --executable ../target/release/${{ env.BINARY_NAME }} \
             --desktop-file ${{ env.BUNDLE_NAME }}.desktop \
-            --icon-file ${{ env.BUNDLE_NAME }}.png \
+            --icon-file ${{ env.BUNDLE_NAME }}.png
+
+          ./linuxdeploy-plugin-gtk.sh --appdir "$APPDIR"
+
+          ./linuxdeploy-x86_64.AppImage --appimage-extract-and-run \
+            --appdir "$APPDIR" \
             --output appimage
 
           rm linuxdeploy-x86_64.AppImage
+          rm linuxdeploy-plugin-gtk.sh
 
           mv *.AppImage out/
           cd ..
