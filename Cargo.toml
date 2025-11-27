@@ -34,7 +34,7 @@ tokio = { version = "1.43", features = ["macros", "rt-multi-thread"] }
 idevice = { git = "https://github.com/jkcoxson/idevice", rev = "ea61459", features = ["afc", "installation_proxy", "debug_proxy", "rsd", "tunnel_tcp_stack", "heartbeat", "usbmuxd", "house_arrest"] }
 zip = { version = "4.3", default-features = false, features = ["deflate"] }
 plist = "1.8.0"
-omnisette = { git = "https://github.com/PlumeImpactor/omnisette", rev = "ce1e5cc", package = "omnisette", features = ["remote-anisette-v3"] }
+omnisette = { git = "https://github.com/PlumeImpactor/omnisette", rev = "c066ac2", package = "omnisette", features = ["remote-anisette-v3"] }
 
 # Errors
 thiserror = "2.0.16"
