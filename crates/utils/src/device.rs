@@ -1,5 +1,5 @@
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 
 use idevice::usbmuxd::{Connection, UsbmuxdAddr, UsbmuxdDevice};
 use idevice::lockdown::LockdownClient;
@@ -69,6 +69,23 @@ impl Device {
         let provider = self.usbmuxd_device.clone().unwrap().to_provider(UsbmuxdAddr::default(), HOUSE_ARREST_LABEL);
         let hc = HouseArrestClient::connect(&provider).await?;
         let mut ac = hc.vend_documents(identifier.clone()).await?;
+        if let Some(parent) = Path::new(path).parent() {
+            let mut current = String::new();
+            let has_root = parent.has_root();
+
+            for component in parent.components() {
+                if let Component::Normal(dir) = component {
+                    if has_root && current.is_empty() {
+                        current.push('/');
+                    } else if !current.is_empty() && !current.ends_with('/') {
+                        current.push('/');
+                    }
+
+                    current.push_str(&dir.to_string_lossy());
+                    let _ = ac.mk_dir(&current).await;
+                }
+            }
+        }
         let mut f = ac.open(path, AfcFopenMode::Wr).await?;
 
         f.write(&pairing_file.serialize().unwrap()).await?;
