@@ -79,6 +79,13 @@ sudo dnf install clang-devel pkg-config gtk3-devel libpng-devel libjpeg-devel me
 - Download and install [Visual Studio 2022 Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) with:
 - Windows 10/11 SDK
 
+## Sponsors
+
+| Thanks to all my [sponsors](https://github.com/sponsors/khcrysalis)!! |
+|:-:|
+| <img src="https://raw.githubusercontent.com/khcrysalis/github-sponsor-graph/main/graph.png"> |
+| _**"samara is cute" - Vendicated**_ |
+
 ## Acknowledgements
 
 - [SAMSAM](https://github.com/khcrysalis) – The maker.
