@@ -62,11 +62,17 @@ impl Device {
         }
 
         let mut usbmuxd = UsbmuxdConnection::default().await?;
-
+        let provider = self.usbmuxd_device.clone().unwrap().to_provider(UsbmuxdAddr::default(), HOUSE_ARREST_LABEL);
         let mut pairing_file = usbmuxd.get_pair_record(&self.udid).await?;
+
+        // saving pairing record requires enabling wifi debugging
+        // since operations are done over wifi
+        let mut lc = LockdownClient::connect(&provider).await?;
+        lc.start_session(&pairing_file).await.ok();
+        lc.set_value("EnableWifiDebugging", true.into(), Some("com.apple.mobile.wireless_lockdown")).await.ok();
+
         pairing_file.udid = Some(self.udid.clone());
 
-        let provider = self.usbmuxd_device.clone().unwrap().to_provider(UsbmuxdAddr::default(), HOUSE_ARREST_LABEL);
         let hc = HouseArrestClient::connect(&provider).await?;
         let mut ac = hc.vend_documents(identifier.clone()).await?;
         if let Some(parent) = Path::new(path).parent() {
@@ -86,8 +92,8 @@ impl Device {
                 }
             }
         }
-        let mut f = ac.open(path, AfcFopenMode::Wr).await?;
 
+        let mut f = ac.open(path, AfcFopenMode::Wr).await?;
         f.write(&pairing_file.serialize().unwrap()).await?;
 
         Ok(())
