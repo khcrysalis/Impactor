@@ -289,9 +289,9 @@ jobs:
 
       - name: Make Appcast
         run: |
-          echo "$SPARKLE_PRIVATE_KEY" | ./bin/generate_appcast --ed-key-file - --download-url-prefix https://github.com/khcrysalis/PlumeImpactor/releases/latest/download/ update/out/
+          echo "$SPARKLE_PRIV_KEY_MAC" | ./bin/generate_appcast --ed-key-file - --download-url-prefix https://github.com/khcrysalis/PlumeImpactor/releases/latest/download/ build/out/
         env:
-          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIV_KEY_MAC }}
+          SPARKLE_PRIV_KEY_MAC: ${{ secrets.SPARKLE_PRIV_KEY_MAC }}
 
       - name: Upload Universal DMG
         uses: actions/upload-artifact@v4
