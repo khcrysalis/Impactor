@@ -127,15 +127,15 @@ jobs:
           mv build/nsis/PlumeInstaller.exe build/out/${{ env.BINARY_NAME }}-setup.exe
           
       - name: Create AppCast
+        shell: pwsh
         run: |
           curl -L -o WinSparkle-0.8.1.zip https://github.com/vslavik/winsparkle/releases/download/v0.8.1/WinSparkle-0.8.1.zip
           unzip WinSparkle-0.8.1.zip -d WinSparkle
-          echo "${{ secrets.SPARKLE_PRIV_KEY_WIN }}" > dsa_priv.pem
-          SIGNATURE=$(.\WinSparkle\bin\sign_update.bat build/out/${{ env.BINARY_NAME }}-setup.exe dsa_priv.pem)
-          VERSION=$(grep '^version *= *' Cargo.toml | head -n1 | sed 's/version *= *"\(.*\)"/\1/')
-          DATE=$(Get-Date -Format "ddd, dd MMM yyyy HH:mm:ss K")
-
-          cat > build/out/appcast.xml <<EOF
+          "${{ secrets.SPARKLE_PRIV_KEY_WIN }}" | Out-File -Encoding ascii dsa_priv.pem
+          $SIGNATURE = & .\WinSparkle\bin\sign_update.bat build/out/${{ env.BINARY_NAME }}-setup.exe dsa_priv.pem
+          $VERSION = (Select-String '^version *= *' Cargo.toml | Select-Object -First 1).Line -replace 'version *= *"(.+)"','$1'
+          $DATE = Get-Date -Format "ddd, dd MMM yyyy HH:mm:ss K"
+          $xml = @"
           <?xml version="1.0" encoding="UTF-8"?>
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
           <channel>
@@ -146,14 +146,15 @@ jobs:
               <title>Version $VERSION</title>
               <sparkle:version>$VERSION</sparkle:version>
               <pubDate>$DATE</pubDate>
-                <enclosure url="https://github.com/khcrysalis/PlumeImpactor/releases/latest/download/${{ env.BINARY_NAME }}-setup.exe"
-                  sparkle:dsaSignature="$SIGNATURE"
-                  length="0"
-                  type="application/octet-stream" />
-              </item>
+              <enclosure url="https://github.com/khcrysalis/PlumeImpactor/releases/latest/download/${{ env.BINARY_NAME }}-setup.exe"
+                sparkle:dsaSignature="$SIGNATURE"
+                length="0"
+                type="application/octet-stream" />
+          </item>
           </channel>
           </rss>
-          EOF
+          "@
+          $xml | Out-File -Encoding utf8 build/out/appcast.xml
 
       - name: Upload Bundles
         uses: actions/upload-artifact@v4

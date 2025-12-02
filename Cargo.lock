@@ -4094,7 +4094,7 @@ dependencies = [
 [[package]]
 name = "sparkle-sys"
 version = "0.1.0"
-source = "git+https://github.com/hankbao/sparkle-updater?rev=762e703#762e70394d9c835140cb0992b57e4487ec844068"
+source = "git+https://github.com/PlumeImpactor/sparkle-updater?rev=3d39e96#3d39e9679b2495e8266037300acc5bcbc96c021b"
 dependencies = [
  "objc",
 ]
@@ -4102,7 +4102,7 @@ dependencies = [
 [[package]]
 name = "sparkle-updater"
 version = "0.1.0"
-source = "git+https://github.com/hankbao/sparkle-updater?rev=762e703#762e70394d9c835140cb0992b57e4487ec844068"
+source = "git+https://github.com/PlumeImpactor/sparkle-updater?rev=3d39e96#3d39e9679b2495e8266037300acc5bcbc96c021b"
 dependencies = [
  "sparkle-sys",
  "winsparkle-sys",
@@ -5313,7 +5313,7 @@ dependencies = [
 [[package]]
 name = "winsparkle-sys"
 version = "0.1.0"
-source = "git+https://github.com/hankbao/sparkle-updater?rev=762e703#762e70394d9c835140cb0992b57e4487ec844068"
+source = "git+https://github.com/PlumeImpactor/sparkle-updater?rev=3d39e96#3d39e9679b2495e8266037300acc5bcbc96c021b"
 
 [[package]]
 name = "wit-bindgen"
