@@ -51,6 +51,7 @@ Section "Install"
     File "${APPEXE}"
     File "WinSparkle.dll"
     File "dsa_pub.pem"
+    File "icon.ico"
 
     ; Start Menu entries
     CreateDirectory "$SMPROGRAMS\${APPNAME}"
@@ -80,6 +81,9 @@ Section "Uninstall"
     RMDir  "$SMPROGRAMS\${APPNAME}"
 
     Delete "$INSTDIR\${APPEXE}"
+    Delete "$INSTDIR\WinSparkle.dll"
+    Delete "$INSTDIR\dsa_pub.pem"
+    Delete "$INSTDIR\icon.ico"
     Delete "$INSTDIR\Uninstall.exe"
 
     RMDir "$INSTDIR"

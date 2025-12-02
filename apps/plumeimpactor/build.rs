@@ -27,7 +27,6 @@ fn embed_windows_manifest(name: &str) {
 
     {
         let mut res = winres::WindowsResource::new();
-        res.set_icon("../../package/windows/icon.ico");
         res.set_resource_file("../../package/windows/custom.rc");
         res.compile().unwrap();
     }
