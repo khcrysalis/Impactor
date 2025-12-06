@@ -16,6 +16,7 @@ plist.workspace = true
 futures.workspace = true
 plume_core = { path = "../../crates/core", features = ["vendored-botan"] }
 plume_utils = { path = "../../crates/utils" }
+plume_shared = { path = "../../crates/shared" }
 
 wxdragon = { git = "https://github.com/PlumeImpactor/wxDragon", rev = "7d407ce", package = "wxdragon" }
 image = { version = "0.25.1", default-features = false, features = ["png"] }

@@ -14,6 +14,7 @@ use idevice::{
     usbmuxd::{UsbmuxdConnection, UsbmuxdListenEvent},
 };
 
+use plume_shared::{AccountCredentials, get_data_path};
 use plume_utils::{Device, Package, PlistInfoTrait, Signer, SignerMode, get_device_for_id};
 
 use wxdragon::prelude::*;
@@ -21,9 +22,7 @@ use futures::StreamExt;
 use tokio::{runtime::Builder, sync::mpsc};
 
 use crate::{
-    get_data_path,
     handlers::{PlumeFrameMessage, PlumeFrameMessageHandler},
-    keychain::AccountCredentials,
     pages::{
         DefaultPage, InstallPage, LoginDialog, SettingsDialog, WINDOW_SIZE, WorkPage, create_default_page, create_install_page, create_login_dialog, create_settings_dialog, create_work_page
     },

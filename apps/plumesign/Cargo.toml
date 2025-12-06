@@ -11,7 +11,11 @@ plist.workspace = true
 tokio.workspace = true
 plume_core = { path = "../../crates/core", features = ["vendored-botan"] }
 plume_utils = { path = "../../crates/utils" }
+plume_shared = { path = "../../crates/shared" }
 
 rustls = { version = "0.23.32", features = ["ring"] }
 
 clap = { version = "4.5", features = ["derive"] }
+dialoguer = "0.12.0"
+anyhow = "1.0"
+goblin = "0.9.3"

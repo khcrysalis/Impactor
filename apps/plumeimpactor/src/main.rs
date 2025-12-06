@@ -1,15 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod frame;
-mod keychain;
 mod pages;
 mod handlers;
-
-use std::{
-    env, 
-    fs, 
-    path::{Path, PathBuf}
-};
 
 #[tokio::main]
 async fn main() {
@@ -36,22 +29,10 @@ pub enum Error {
     Utils(#[from] plume_utils::Error),
 }
 
-pub fn get_data_path() -> PathBuf {
-    let base = if cfg!(windows) {
-        env::var("APPDATA").unwrap()
-    } else {
-        env::var("HOME").unwrap() + "/.config"
-    };
-
-    let dir = Path::new(&base).join("PlumeImpactor");
-
-    fs::create_dir_all(&dir).ok();
-    
-    dir
-}
-
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 pub fn get_mac_udid() -> Option<String> {
+    use std::env;
+
     let exe_dir = env::current_exe().ok()?.parent()?.to_path_buf();
     let udid_path = exe_dir.join("udid");
     

@@ -3,7 +3,7 @@ resolver = "3"
 members = [
     "apps/plumeimpactor",
     "apps/plumesign",
-    "crates/core",
+    "crates/core", "crates/shared",
     "crates/utils"
 ]
 

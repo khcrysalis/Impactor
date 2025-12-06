@@ -45,6 +45,12 @@ hex = "0.4.3"
 # this dep sucks
 p12-keystore = "0.2.0"
 
+
+
+
+decompress = "0.1.0"
+
 [features]
 default = []
 vendored-botan = ["botan/vendored"]
+tweaks = []

@@ -8,7 +8,7 @@ use crate::{Error, developer::v1::capabilities::Capability};
 
 /// Represents a Mach-O file and its entitlements.
 pub struct MachO {
-    _macho_file: MachFile<'static>,
+    pub _macho_file: MachFile<'static>,
     pub entitlements: Option<Dictionary>,
 }
 
@@ -55,6 +55,11 @@ impl MachO {
         let capabilities_to_enable: Vec<String> = capabilities
             .iter()
             .filter_map(|cap| {
+                // https://github.com/khcrysalis/PlumeImpactor/issues/34#issuecomment-3619385855
+                if cap.id == "AUTOFILL_CREDENTIAL_PROVIDER" {
+                    return None;
+                }
+                
                 cap.attributes.entitlements.as_ref().and_then(|ent_list| {
                     if ent_list.iter().any(|e| ent_keys.contains(&e.profile_key)) {
                         Some(cap.id.clone())

@@ -24,7 +24,7 @@ use crate::{
 pub struct Signer {
     certificate: Option<CertificateIdentity>,
     pub options: SignerOptions,
-    provisioning_files: Vec<MobileProvision>,
+    pub provisioning_files: Vec<MobileProvision>,
 }
 
 impl Signer {
@@ -34,20 +34,6 @@ impl Signer {
     ) -> Self {
         Self {
             certificate,
-            options,
-            provisioning_files: Vec::new(),
-        }
-    }
-
-    pub fn adhoc(options: SignerOptions) -> Self {
-        Self {
-            certificate: Some(CertificateIdentity {
-                cert: None,
-                key: None,
-                machine_id: None,
-                p12_data: None,
-                serial_number: None,
-            }),
             options,
             provisioning_files: Vec::new(),
         }
@@ -186,6 +172,7 @@ impl Signer {
                     .ok_or_else(|| Error::Other("Failed to get ensured app ID.".into()))?;
 
                 if let Some(caps) = macho.capabilities_for_entitlements(&capabilities.data) {
+                    println!("Updating capabilities for app ID {}: {:?}", &id, caps);
                     session.v1_update_app_id(&team_id, &id, caps).await?;
                 }
 
@@ -225,11 +212,20 @@ impl Signer {
     pub async fn sign_bundle(&self, bundle: &Bundle) -> Result<(), Error> {
         let bundles = bundle.collect_bundles_sorted()?;
 
+        let settings = Self::build_base_settings(self.certificate.as_ref())?;
+        let entitlements_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict/>
+</plist>
+"#.to_string();
+
         for bundle in &bundles {
             Self::sign_single_bundle(
                 bundle, 
-                self.certificate.as_ref(), 
-                &self.provisioning_files, 
+                &self.provisioning_files,
+                settings.clone(),
+                &entitlements_xml,
             )?;
         }
 
@@ -244,21 +240,15 @@ impl Signer {
 
     fn sign_single_bundle(
         bundle: &Bundle,
-        certificate: Option<&CertificateIdentity>,
         provisioning_files: &[MobileProvision],
+        mut settings: SigningSettings<'_>,
+        entitlements_xml: &String,
     ) -> Result<(), Error> {
         if *bundle.bundle_type() == BundleType::Unknown {
             return Ok(());
         }
 
-        let mut settings = Self::build_base_settings(certificate)?;
-
-        let mut entitlements_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict/>
-</plist>
-"#.to_string();
+        let mut entitlements_xml = entitlements_xml.clone();
 
         // Only Apps and AppExtensions should have entitlements from provisioning profiles
         // Dylibs, frameworks, and other components should be signed without entitlements

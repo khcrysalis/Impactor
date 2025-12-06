@@ -10,8 +10,8 @@ use plume_utils::{
     Package, 
     Device
 };
+use plume_shared::AccountCredentials;
 use crate::frame::PlumeFrame;
-use crate::keychain::AccountCredentials;
 
 #[derive(Debug)]
 pub enum PlumeFrameMessage {
