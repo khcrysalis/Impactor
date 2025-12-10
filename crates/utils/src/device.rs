@@ -6,7 +6,7 @@ use idevice::lockdown::LockdownClient;
 use idevice::IdeviceService;
 use idevice::utils::installation;
 
-use crate::Error;
+use crate::{Error, copy_dir_recursively};
 use idevice::usbmuxd::UsbmuxdConnection;
 use idevice::house_arrest::HouseArrestClient;
 use idevice::afc::opcode::AfcFopenMode;
@@ -156,8 +156,7 @@ impl Device {
         
         fs::create_dir_all(&wrapper_dir).await?;
         
-        let wrapped_app_path = wrapper_dir.join(app_name);
-        Self::copy_dir_recursively(app_path, &wrapped_app_path).await?;
+        copy_dir_recursively(app_path, &wrapper_dir.join(app_name)).await?;
 
         let wrapped_bundle_path = outer_app_dir.join("WrappedBundle");
         fs::symlink(PathBuf::from("Wrapper").join(app_name), &wrapped_bundle_path).await?;
@@ -166,28 +165,6 @@ impl Device {
         fs::rename(&outer_app_dir, &applications_dir).await
             .map_err(|_| Error::BundleFailedToCopy(applications_dir.to_string_lossy().into_owned()))?;
 
-        Ok(())
-    }
-
-    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    async fn copy_dir_recursively(src: &PathBuf, dst: &PathBuf) -> Result<(), Error> {
-        use tokio::fs;
-        
-        fs::create_dir_all(dst).await?;
-        let mut entries = fs::read_dir(src).await?;
-        
-        while let Some(entry) = entries.next_entry().await? {
-            let file_type = entry.file_type().await?;
-            let src_path = entry.path();
-            let dst_path = dst.join(entry.file_name());
-            
-            if file_type.is_dir() {
-                Box::pin(Self::copy_dir_recursively(&src_path, &dst_path)).await?;
-            } else {
-                fs::copy(&src_path, &dst_path).await?;
-            }
-        }
-        
         Ok(())
     }
 }

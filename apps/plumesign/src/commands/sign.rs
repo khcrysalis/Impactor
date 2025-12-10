@@ -12,7 +12,7 @@ use crate::commands::account::{get_authenticated_account, teams};
 #[derive(Debug, Args)]
 pub struct SignArgs {
     /// Path to the app bundle to sign (.app or .ipa)
-    #[arg(value_name = "BUNDLE")]
+    #[arg(long = "bundle", value_name = "BUNDLE")]
     pub bundle: PathBuf,
     /// PEM files for certificate and private key
     #[arg(long = "pem", value_name = "PEM", num_args = 1..)]
@@ -33,7 +33,7 @@ pub struct SignArgs {
     #[arg(long = "adhoc")]
     pub adhoc: bool,
     /// Perform ad-hoc signing (no certificate required)
-    #[arg(long = "tweaks")]
+    #[arg(long = "tweaks", num_args = 1..)]
     pub tweaks: Option<Vec<PathBuf>>,
 }
 
@@ -44,20 +44,18 @@ pub async fn execute(args: SignArgs) -> Result<()> {
         custom_version: args.version,
         ..Default::default()
     };
+    
+    let bundle = Bundle::new(&args.bundle)?;
+
 
     if let Some(tweak_files) = args.tweaks {
         println!("Applying tweaks: {:?}", tweak_files);
 
         for tweak_file in tweak_files {
-            let tweak = plume_core::Tweak::from_path(tweak_file).await?;
+            let tweak = plume_utils::Tweak::new(tweak_file, &bundle).await?;
             tweak.apply().await?;
         }
-
     }
-
-    todo!();
-    
-    let bundle = Bundle::new(&args.bundle)?;
     
     let (mut signer, team_id_opt) = if args.adhoc {
         println!("Using ad-hoc signing (no certificate)");
@@ -91,7 +89,7 @@ pub async fn execute(args: SignArgs) -> Result<()> {
         let prov = MobileProvision::load_with_path(&provision_path)?;
         signer.provisioning_files.push(prov.clone());
         let p = bundle.bundle_dir().join("embedded.mobileprovision");
-        tokio::fs::write(p, prov.provision_data).await?;
+        tokio::fs::write(p, prov.data).await?;
     }
 
     if let Some((session, team_id)) = team_id_opt {

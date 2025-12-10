@@ -173,7 +173,7 @@ impl PlumeFrame {
 
                 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
                 {
-                    if let Some(mac_udid) = crate::get_mac_udid() {
+                    if let Some(mac_udid) = gestalt::get_udid() {
                         sender.send(PlumeFrameMessage::DeviceConnected(Device { name: "This Mac".into(), udid: mac_udid, device_id: u32::MAX, usbmuxd_device: None })).ok();
                     }
                 }
@@ -386,7 +386,7 @@ impl PlumeFrame {
                             
                             #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
                             {
-                                let mac_udid = crate::get_mac_udid()
+                                let mac_udid = gestalt::get_udid()
                                     .ok_or_else(|| "Failed to get Mac UDID".to_string())?;
                                 Device { 
                                     name: "This Mac".into(), 

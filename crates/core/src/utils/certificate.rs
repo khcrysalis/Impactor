@@ -10,6 +10,8 @@ use x509_certificate::{CapturedX509Certificate, X509Certificate};
 
 use crate::{Error, developer::{DeveloperSession, qh::certs::Cert}};
 
+const MACHINE_NAME: &str = "AltStore";
+
 pub struct CertificateIdentity {
     pub cert: Option<CapturedX509Certificate>,
     pub key: Option<Box<dyn PrivateKey>>,
@@ -45,7 +47,7 @@ impl CertificateIdentity {
         machine_name: Option<String>,
         team_id: &String,
     ) -> Result<Self, Error> {
-        let machine_name = machine_name.unwrap_or_else(|| "AltStore".to_string());
+        let machine_name = machine_name.unwrap_or_else(|| MACHINE_NAME.to_string());
 
         let key_path = Self::key_dir(config_path, &team_id)?.join("key.pem");
 
@@ -115,12 +117,10 @@ impl CertificateIdentity {
     }
 
     fn set_machine_id(&mut self, machine_id: String) {
-        println!("Setting machine id: {}", machine_id);
         self.machine_id = Some(machine_id);
     }
 
     fn set_serial_number(&mut self, serial_number: String) {
-        println!("Setting serial number: {}", serial_number);
         self.serial_number = Some(serial_number);
     }
 
@@ -157,37 +157,17 @@ impl CertificateIdentity {
          for pem in pem::parse_many(contents).map_err(Error::Pem)? {
             match pem.tag() {
                 "CERTIFICATE" => {
-                    println!("CERTIFICATE loaded!"); // TODO: REMOVE SOME DEBUG STATEMENTS IF THIS WORKS WONDERFULY
                     self.cert = Some(CapturedX509Certificate::from_der(pem.contents())?);
                 }
                 "PRIVATE KEY" => {
-                    println!("PRIVATE KEY loaded!"); // TODO: REMOVE SOME DEBUG STATEMENTS IF THIS WORKS WONDERFULY
                     self.key = Some(Box::new(InMemoryPrivateKey::from_pkcs8_der(pem.contents())?));
                 }
                 "RSA PRIVATE KEY" => {
-                    println!("RSA PRIVATE KEY loaded!"); // TODO: REMOVE SOME DEBUG STATEMENTS IF THIS WORKS WONDERFULY
                     self.key = Some(Box::new(InMemoryPrivateKey::from_pkcs1_der(pem.contents())?));
                 }
                 tag => println!("(unhandled PEM tag {}; ignoring)", tag),
             }
         }
-
-        Ok(())
-    }
-
-    pub fn load_into_signing_settings<'settings, 'slf: 'settings>(
-        &'slf self,
-        settings: &'settings mut SigningSettings<'slf>,
-    ) -> Result<(), Error> {
-        let signing_cert = self.cert.clone().ok_or(Error::CertificatePemMissing)?;
-        let signing_key = self.key.as_ref().ok_or(Error::CertificatePemMissing)?;
-
-        settings.set_signing_key(signing_key.as_key_info_signer(), signing_cert);
-        settings.chain_apple_certificates();
-        
-        settings.set_for_notarization(false);
-        settings.set_shallow(false);
-        settings.set_team_id_from_signing_certificate();
 
         Ok(())
     }
@@ -316,5 +296,21 @@ impl CertificateIdentity {
             .find(|c| c.certificate_id == cert_id.certificate_id);
 
         Ok((certs.ok_or(Error::CertificatePemMissing)?, priv_key))
+    }
+}
+
+impl CertificateIdentity {
+    pub fn load_into_signing_settings<'settings, 'slf: 'settings>(
+        &'slf self,
+        settings: &'settings mut SigningSettings<'slf>,
+    ) -> Result<(), Error> {
+        let signing_cert = self.cert.clone().ok_or(Error::CertificatePemMissing)?;
+        let signing_key = self.key.as_ref().ok_or(Error::CertificatePemMissing)?;
+
+        settings.set_signing_key(signing_key.as_key_info_signer(), signing_cert);
+        settings.chain_apple_certificates();
+        settings.set_team_id_from_signing_certificate();
+
+        Ok(())
     }
 }

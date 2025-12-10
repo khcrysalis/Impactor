@@ -2,97 +2,39 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::Error;
+use crate::utils::TEAM_ID_REGEX;
 use plist::{Dictionary, Value};
 
 use super::MachO;
 
 #[derive(Clone)]
 pub struct MobileProvision {
-    pub provision_data: Vec<u8>,
-    provisioning_plist: Value,
+    pub data: Vec<u8>,
     entitlements: Dictionary,
 }
 
 impl MobileProvision {
-    pub fn load_with_path<P: AsRef<Path>>(provision_path: P) -> Result<Self, Error> {
-        let path = provision_path.as_ref();
+    pub fn load_with_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        let path = path.as_ref();
+        let data = fs::read(path)?;
 
-        if !path.exists() {
-            return Err(Error::ProvisioningEntitlementsUnknown);
-        }
+        Self::load_with_bytes(data)
+    }
 
-        let provision_data = fs::read(path)?;
-        let provisioning_plist = Self::extract_plist_from_file(&provision_data)?;
-        let entitlements = Self::extract_entitlements(&provisioning_plist)?;
+    pub fn load_with_bytes(data: Vec<u8>) -> Result<Self, Error> {
+        let entitlements = Self::extract_entitlements_from_prov(&data)?;
 
         Ok(Self {
-            provision_data,
-            provisioning_plist,
+            data,
             entitlements,
         })
     }
 
-    pub fn load_with_bytes(provision_data: Vec<u8>) -> Result<Self, Error> {
-        let provisioning_plist = Self::extract_plist_from_file(&provision_data)?;
-        let entitlements = Self::extract_entitlements(&provisioning_plist)?;
-
-        Ok(Self {
-            provision_data,
-            provisioning_plist,
-            entitlements,
-        })
-    }
-
-    pub fn entitlements(&self) -> &Dictionary {
-        &self.entitlements
-    }
-
-    pub fn replace_wildcard_in_entitlements(&mut self, new_application_id: &str) {
-        for value in self.entitlements.values_mut() {
-            match value {
-                Value::String(s) => {
-                    if s.contains('*') {
-                        *s = s.replace('*', new_application_id);
-                    }
-                }
-                Value::Array(arr) => {
-                    for item in arr.iter_mut() {
-                        if let Value::String(s) = item {
-                            if s.contains('*') {
-                                *s = s.replace('*', new_application_id);
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    pub fn merge_entitlements(&mut self, binary_path: PathBuf) -> Result<(), Error> {
+    pub fn merge_entitlements(&mut self, binary_path: PathBuf, new_application_id: &str) -> Result<(), Error> {
         let macho = MachO::new(&binary_path)?;
         let binary_entitlements = macho
-            .entitlements
+            .entitlements().clone()
             .ok_or(Error::ProvisioningEntitlementsUnknown)?;
-
-        if let Some(Value::Array(other_groups)) = binary_entitlements.get("keychain-access-groups")
-        {
-            self.entitlements.insert(
-                "keychain-access-groups".to_string(),
-                Value::Array(other_groups.clone()),
-            );
-        }
-
-        // this is granted by default.
-        if let Some(Value::Array(groups)) = self.entitlements.get_mut("keychain-access-groups") {
-            groups.retain(|group| {
-                if let Value::String(s) = group {
-                    !s.starts_with("com.apple.token")
-                } else {
-                    true
-                }
-            });
-        }
 
         let new_team_id = self
             .entitlements
@@ -100,22 +42,18 @@ impl MobileProvision {
             .and_then(Value::as_string)
             .map(|s| s.to_owned());
 
-        if let Some(new_id) = new_team_id.as_ref() {
-            if let Some(Value::Array(groups)) = 
-                self.entitlements.get_mut("keychain-access-groups")
-            {
-                for group in groups.iter_mut() {
-                    if let Value::String(s) = group {
-                        let re = regex::Regex::new(r"^[A-Z0-9]{10}\.").unwrap();
-                        if re.is_match(s) {
-                            *s = format!("{}.{}", new_id, &s[11..]);
-                        }
-                    }
-                }
-            }
-        }
+        crate::utils::merge_entitlements(
+            &mut self.entitlements,
+            &binary_entitlements,
+            &new_team_id,
+            &Some(new_application_id.to_string()),
+        );
 
         Ok(())
+    }
+
+    pub fn entitlements(&self) -> &Dictionary {
+        &self.entitlements
     }
 
     pub fn entitlements_as_bytes(&self) -> Result<Vec<u8>, Error> {
@@ -130,25 +68,13 @@ impl MobileProvision {
             .get("application-identifier")?
             .as_string()?;
 
-        let prefix = self
-            .provisioning_plist
-            .as_dictionary()?
-            .get("ApplicationIdentifierPrefix")?
-            .as_array()?
-            .get(0)?
-            .as_string();
+        let re = regex::Regex::new(TEAM_ID_REGEX).ok()?;
+        let bundle_id = re.replace(app_id, "").to_string();
 
-        if let Some(prefix) = prefix {
-            app_id
-                .strip_prefix(prefix)
-                .map(|rest| rest.trim_start_matches('.').to_string())
-                .or_else(|| Some(app_id.to_string()))
-        } else {
-            Some(app_id.to_string())
-        }
+        Some(bundle_id)
     }
 
-    fn extract_plist_from_file(data: &[u8]) -> Result<Value, Error> {
+    fn extract_entitlements_from_prov(data: &[u8]) -> Result<Dictionary, Error> {
         let start = data
             .windows(6)
             .position(|w| w == b"<plist")
@@ -160,10 +86,7 @@ impl MobileProvision {
             + 8;
         let plist_data = &data[start..end];
         let plist = plist::Value::from_reader_xml(plist_data)?;
-        Ok(plist)
-    }
 
-    fn extract_entitlements(plist: &Value) -> Result<Dictionary, Error> {
         plist
             .as_dictionary()
             .and_then(|d| d.get("Entitlements"))

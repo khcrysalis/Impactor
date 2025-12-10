@@ -13,6 +13,8 @@ pub struct SignerOptions {
     pub embedding: SignerEmbedding,
     /// Mode.
     pub mode: SignerMode,
+    /// Tweaks to apply before signing.
+    pub tweaks: Option<Vec<std::path::PathBuf>>,
     /// App type.
     pub app: SignerApp,
 }
@@ -26,6 +28,7 @@ impl Default for SignerOptions {
             features: SignerFeatures::default(),
             embedding: SignerEmbedding::default(),
             mode: SignerMode::default(),
+            tweaks: None,
             app: SignerApp::Default,
         }
     }

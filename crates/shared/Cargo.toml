@@ -1,5 +1,6 @@
 [package]
 name = "plume_shared"
+description = "Commons for Impactor tools."
 edition.workspace = true
 version.workspace = true
 authors.workspace = true

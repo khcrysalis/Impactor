@@ -1,16 +1,13 @@
-use std::{
-    fs, 
-    path::PathBuf
-};
-use plist::Value;
 use super::PlistInfoTrait;
 use crate::Error;
+use plist::Value;
+use std::{fs, path::PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct Bundle {
-    dir: PathBuf,
-    _type: BundleType,
-    info_plist_file: PathBuf,
+    bundle_dir: PathBuf,
+    bundle_type: BundleType,
+    info_plist_path: PathBuf,
 }
 
 impl Bundle {
@@ -29,22 +26,22 @@ impl Bundle {
             .unwrap_or(BundleType::Unknown);
 
         Ok(Self {
-            dir: path,
-            _type: bundle_type,
-            info_plist_file: info_plist_path,
+            bundle_dir: path,
+            bundle_type,
+            info_plist_path,
         })
     }
-    
+
     pub fn bundle_dir(&self) -> &PathBuf {
-        &self.dir
+        &self.bundle_dir
     }
-    
+
     pub fn bundle_type(&self) -> &BundleType {
-        &self._type
+        &self.bundle_type
     }
-    
+
     pub fn collect_nested_bundles(&self) -> Result<Vec<Bundle>, Error> {
-        collect_embeded_bundles_from_dir(&self.dir)
+        collect_embeded_bundles_from_dir(&self.bundle_dir)
     }
 
     pub fn collect_bundles_sorted(&self) -> Result<Vec<Bundle>, Error> {
@@ -52,44 +49,44 @@ impl Bundle {
         bundles.push(self.clone());
         bundles.sort_by_key(|b| b.bundle_dir().components().count());
         bundles.reverse();
-        
+
         Ok(bundles)
     }
 }
 
 impl Bundle {
-    pub fn set_info_plist_key<V: Into<Value>>(
-        &self,
-        key: &str,
-        value: V,
-    ) -> Result<(), Error> {
-        let mut plist = Value::from_file(&self.info_plist_file)?;
+    pub fn set_info_plist_key<V: Into<Value>>(&self, key: &str, value: V) -> Result<(), Error> {
+        let mut plist = Value::from_file(&self.info_plist_path)?;
         if let Some(dict) = plist.as_dictionary_mut() {
             dict.insert(key.to_string(), value.into());
         }
-        plist.to_file_xml(&self.info_plist_file)?;
-        
+        plist.to_file_xml(&self.info_plist_path)?;
+
         Ok(())
     }
-    
+
     // TODO: we need to support changing lproj infoplist strings so localized names change as well
     pub fn set_name(&self, new_name: &str) -> Result<(), Error> {
         self.set_info_plist_key("CFBundleDisplayName", new_name)?;
         self.set_info_plist_key("CFBundleName", new_name)
     }
-    
+
     pub fn set_version(&self, new_version: &str) -> Result<(), Error> {
         self.set_info_plist_key("CFBundleShortVersionString", new_version)?;
         self.set_info_plist_key("CFBundleVersion", new_version)
     }
-    
+
     pub fn set_bundle_identifier(&self, new_identifier: &str) -> Result<(), Error> {
         self.set_info_plist_key("CFBundleIdentifier", new_identifier)
     }
 
-    pub fn set_matching_identifier(&self, old_identifier: &str, new_identifier: &str) -> Result<(), Error> {
+    pub fn set_matching_identifier(
+        &self,
+        old_identifier: &str,
+        new_identifier: &str,
+    ) -> Result<(), Error> {
         let mut did_change = false;
-        let mut plist = Value::from_file(&self.info_plist_file)?;
+        let mut plist = Value::from_file(&self.info_plist_path)?;
 
         // CFBundleIdentifier
         if let Some(dict) = plist.as_dictionary_mut() {
@@ -105,18 +102,27 @@ impl Bundle {
             if let Some(Value::String(old_value)) = dict.get("WKCompanionAppBundleIdentifier") {
                 let new_value = old_value.replace(old_identifier, new_identifier);
                 if old_value != &new_value {
-                    dict.insert("WKCompanionAppBundleIdentifier".to_string(), Value::String(new_value));
+                    dict.insert(
+                        "WKCompanionAppBundleIdentifier".to_string(),
+                        Value::String(new_value),
+                    );
                     did_change = true;
                 }
             }
 
             // NSExtension → NSExtensionAttributes → WKAppBundleIdentifier
             if let Some(Value::Dictionary(extension_dict)) = dict.get_mut("NSExtension") {
-                if let Some(Value::Dictionary(attributes)) = extension_dict.get_mut("NSExtensionAttributes") {
-                    if let Some(Value::String(old_value)) = attributes.get("WKAppBundleIdentifier") {
+                if let Some(Value::Dictionary(attributes)) =
+                    extension_dict.get_mut("NSExtensionAttributes")
+                {
+                    if let Some(Value::String(old_value)) = attributes.get("WKAppBundleIdentifier")
+                    {
                         let new_value = old_value.replace(old_identifier, new_identifier);
                         if old_value != &new_value {
-                            attributes.insert("WKAppBundleIdentifier".to_string(), Value::String(new_value));
+                            attributes.insert(
+                                "WKAppBundleIdentifier".to_string(),
+                                Value::String(new_value),
+                            );
                             did_change = true;
                         }
                     }
@@ -125,7 +131,7 @@ impl Bundle {
         }
 
         if did_change {
-            plist.to_file_xml(&self.info_plist_file)?;
+            plist.to_file_xml(&self.info_plist_path)?;
         }
 
         Ok(())
@@ -134,7 +140,7 @@ impl Bundle {
 
 macro_rules! get_plist_string {
     ($self:ident, $key:expr) => {{
-        let plist = Value::from_file(&$self.info_plist_file).ok()?;
+        let plist = Value::from_file(&$self.info_plist_path).ok()?;
         plist
             .as_dictionary()
             .and_then(|dict| dict.get($key))
@@ -169,7 +175,7 @@ impl PlistInfoTrait for Bundle {
 
 fn collect_embeded_bundles_from_dir(dir: &PathBuf) -> Result<Vec<Bundle>, Error> {
     let mut bundles = Vec::new();
-    
+
     fn is_bundle_dir(name: &str) -> bool {
         if let Some((_, ext)) = name.rsplit_once('.') {
             BundleType::from_extension(ext).is_some()
@@ -177,7 +183,7 @@ fn collect_embeded_bundles_from_dir(dir: &PathBuf) -> Result<Vec<Bundle>, Error>
             false
         }
     }
-    
+
     fn is_dylib_file(name: &str) -> bool {
         name.ends_with(".dylib")
     }
@@ -191,18 +197,18 @@ fn collect_embeded_bundles_from_dir(dir: &PathBuf) -> Result<Vec<Bundle>, Error>
             if path.is_file() && is_dylib_file(name) {
                 // Create a pseudo-bundle for dylib files
                 bundles.push(Bundle {
-                    dir: path,
-                    _type: BundleType::Dylib,
-                    info_plist_file: PathBuf::new(), // Empty for dylibs
+                    bundle_dir: path,
+                    bundle_type: BundleType::Dylib,
+                    info_plist_path: PathBuf::new(), // Empty for dylibs
                 });
                 continue;
             }
-            
+
             if is_bundle_dir(name) {
                 if let Ok(bundle) = Bundle::new(&path) {
                     bundles.push(bundle.clone());
 
-                    if bundle._type != BundleType::App {
+                    if bundle.bundle_type != BundleType::App {
                         if let Ok(embedded) = bundle.collect_nested_bundles() {
                             bundles.extend(embedded);
                         }
@@ -228,7 +234,7 @@ pub enum BundleType {
     AppExtension,
     Framework,
     Dylib,
-    Unknown
+    Unknown,
 }
 
 impl BundleType {
@@ -241,12 +247,12 @@ impl BundleType {
             _ => Some(BundleType::Unknown),
         }
     }
-    
+
     /// Returns true if this bundle type should be signed with entitlements
     pub fn should_have_entitlements(&self) -> bool {
         matches!(self, BundleType::App | BundleType::AppExtension)
     }
-    
+
     /// Returns true if this bundle type should be code signed
     pub fn should_be_signed(&self) -> bool {
         !matches!(self, BundleType::Unknown)

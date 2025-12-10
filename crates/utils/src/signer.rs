@@ -166,14 +166,11 @@ impl Signer {
 
                 session.qh_ensure_app_id(&team_id, &sub_bundle.get_name().unwrap_or_default(), &id).await?;
 
-                let capabilities = session.v1_list_capabilities(&team_id).await?;
-
                 let app_id_id = session.qh_get_app_id(&team_id, &id).await?
                     .ok_or_else(|| Error::Other("Failed to get ensured app ID.".into()))?;
 
-                if let Some(caps) = macho.capabilities_for_entitlements(&capabilities.data) {
-                    println!("Updating capabilities for app ID {}: {:?}", &id, caps);
-                    session.v1_update_app_id(&team_id, &id, caps).await?;
+                if let Some(e) = macho.entitlements().as_ref() {
+                    session.v1_request_capabilities_for_entitlements(&team_id, &id, e).await?;
                 }
 
                 if let Some(app_groups) = macho.app_groups_for_entitlements() {
@@ -267,18 +264,16 @@ impl Signer {
             if let Some(prov) = matched_prov.or_else(|| provisioning_files.first()) {
                 let mut prov = prov.clone();
 
-                if let Some(bundle_id) = bundle.get_bundle_identifier() {
-                    prov.replace_wildcard_in_entitlements(&bundle_id);
-                }
-
                 if let Some(bundle_executable) = bundle.get_executable() {
-                    let binary_path = bundle.bundle_dir().join(bundle_executable);
-                    prov.merge_entitlements(binary_path).ok();
+                    if let Some(bundle_id) = bundle.get_bundle_identifier() {
+                        let binary_path = bundle.bundle_dir().join(bundle_executable);
+                        prov.merge_entitlements(binary_path, &bundle_id).ok();
+                    }
                 }
 
                 std::fs::write(
                     bundle.bundle_dir().join("embedded.mobileprovision"),
-                    &prov.provision_data,
+                    &prov.data,
                 )?;
 
                 if let Ok(ent_xml) = prov.entitlements_as_bytes() {
@@ -300,7 +295,6 @@ impl Signer {
 
         if let Some(cert) = certificate {
             cert.load_into_signing_settings(&mut settings)?;
-            settings.set_team_id_from_signing_certificate();
         }
 
         settings.set_for_notarization(false);

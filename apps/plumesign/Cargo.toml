@@ -19,3 +19,6 @@ clap = { version = "4.5", features = ["derive"] }
 dialoguer = "0.12.0"
 anyhow = "1.0"
 goblin = "0.9.3"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+gestalt = { path = "../../crates/gestalt" }

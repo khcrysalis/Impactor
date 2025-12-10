@@ -203,8 +203,6 @@ jobs:
           mkdir -p build/universal
           lipo -create -output build/universal/${{ env.BINARY_NAME }} build/slices/${{ env.BINARY_NAME }}-arm build/slices/${{ env.BINARY_NAME }}-intel
           chmod +x build/universal/${{ env.BINARY_NAME }}
-          # for udid
-          make
 
       - name: Bundle
         run: |
@@ -212,8 +210,6 @@ jobs:
           cp -R package/macos/${{ env.BUNDLE_NAME }}.app build/dmg/${{ env.BUNDLE_NAME }}.app
           mkdir -p build/dmg/${{ env.BUNDLE_NAME }}.app/Contents/MacOS
           mv build/universal/${{ env.BINARY_NAME }} build/dmg/${{ env.BUNDLE_NAME }}.app/Contents/MacOS/${{ env.BINARY_NAME }}
-          # for udid
-          mv build/udid build/dmg/${{ env.BUNDLE_NAME }}.app/Contents/MacOS/udid
 
       - name: Codesign
         run: |

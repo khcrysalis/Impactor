@@ -1,0 +1,67 @@
+use std::path::PathBuf;
+use clap::Args;
+use anyhow::Result;
+use plume_core::{MachO, MachOExt};
+
+#[derive(Debug, Args)]
+pub struct MachArgs {
+    #[arg(value_name = "BINARY")]
+    pub binary: PathBuf,
+    
+    #[arg(long)]
+    pub entitlements: bool,
+    
+    /// List all dylib dependencies
+    #[arg(long)]
+    pub list_dylibs: bool,
+    
+    /// Add a dylib dependency (e.g., @rpath/MyLib.dylib)
+    #[arg(long, value_name = "DYLIB_PATH")]
+    pub add_dylib: Option<String>,
+    
+    /// Replace an existing dylib dependency
+    #[arg(long, value_names = &["OLD", "NEW"], num_args = 2)]
+    pub replace_dylib: Option<Vec<String>>,
+}
+
+pub async fn execute(args: MachArgs) -> Result<()> {
+    let mut macho = MachO::new(&args.binary)?;
+
+
+    if let Some(dylib_path) = &args.add_dylib {
+        macho.add_dylib(dylib_path)?;
+        return Ok(());
+    }
+
+    if let Some(replace_paths) = &args.replace_dylib {
+        if replace_paths.len() == 2 {
+            macho.replace_dylib(&replace_paths[0], &replace_paths[1])?;
+            return Ok(());
+        }
+    }
+
+    if args.list_dylibs {
+        // TODO: add index argument
+        let d = macho.macho_file().nth_macho(0).unwrap().dylib_load_paths().unwrap();
+        for path in d {
+            println!("{path}");
+        }
+        return Ok(());
+    }
+
+    let entitlements = macho.entitlements();
+    if args.entitlements {
+        if let Some(ent) = entitlements {
+            let mut buf = Vec::new();
+            plist::Value::Dictionary(ent.clone()).to_writer_xml(&mut buf)?;
+            let xml_str = String::from_utf8(buf)?;
+            println!("{}", xml_str);
+        }
+    }
+
+    Ok(())
+}
+
+
+
+

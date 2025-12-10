@@ -1,5 +1,6 @@
 [package]
-name = "plume_core" # TODO: rename to sinners_road
+name = "plume_core"
+description = "Core library for Impactor tools."
 edition.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -13,42 +14,36 @@ crates = ["srp", "apple-codesign"]
 tokio.workspace = true
 plist.workspace = true
 uuid.workspace = true
-reqwest.workspace = true
-omnisette.workspace = true
-serde_json.workspace = true
-pem.workspace = true
-x509-certificate.workspace = true
-apple-codesign.workspace = true
 thiserror.workspace = true
-
-rustls = { version = "0.23.32", features = ["ring"] }
+# Core dependencies
 serde = { version = "1", features = ["derive"] }
-
+serde_json = { version = "1" }
+rustls = { version = "0.23.32", features = ["ring"] }
+reqwest = { version = "0.11.14", features = ["blocking", "json", "default-tls"] }
+regex = "1.11.2"
+base64 = "0.22"
+hex = "0.4.3"
+rand = "0.8.5"
+# Cryptography
+aes = "0.8.2"
+botan = "0.12.0"
 cbc = { version = "0.1.2", features = ["std"] }
 hmac = "0.12.1"
 pbkdf2 = "0.11"
-sha2 = "0.10.9"
-rand = "0.8.5" # cert needs this version instead of 0.9 apparently
-srp = "0.6.0"
-aes = "0.8.2"
-botan = "0.12.0"
-base64 = "0.22"
-# match/replace
-regex = "1.11.2"
-
-# certs
 sha1 = "0.10.6"
-rcgen = "0.9.3"
-pem-rfc7468 = "0.7.0"
+sha2 = "0.10.9"
+srp = "0.6.0"
 rsa = "0.9.8"
-hex = "0.4.3"
-# this dep sucks
-p12-keystore = "0.2.0"
-
-
-
-
-decompress = "0.1.0"
+# Certificates
+x509-certificate = "0.24.0"
+pem = "3.0.5"
+pem-rfc7468 = "0.7.0"
+rcgen = "0.9.3"
+p12-keystore = "0.2.0" # TODO: look into p12 crate and why it doesnt support SHA256
+# Apple
+apple-codesign = { version = "0.29.0", default-features = false }
+omnisette = { git = "https://github.com/PlumeImpactor/omnisette", rev = "c066ac2", package = "omnisette", features = ["remote-anisette-v3"] }
+goblin = "0.9.3"
 
 [features]
 default = []

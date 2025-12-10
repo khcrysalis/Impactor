@@ -27,3 +27,6 @@ keyring = { version = "3.6.3", default-features = false, features = ["windows-na
 [target.'cfg(target_os = "windows")'.build-dependencies]
 embed-manifest = "1.4"
 winres = "0.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+gestalt = { path = "../../crates/gestalt" }

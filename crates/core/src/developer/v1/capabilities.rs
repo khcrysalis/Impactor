@@ -1,3 +1,4 @@
+use plist::Dictionary;
 use serde::{Deserialize};
 use serde_json::json;
 
@@ -7,6 +8,11 @@ use crate::auth::account::request::RequestType;
 use crate::developer_endpoint;
 
 use crate::Error;
+use std::collections::HashSet;
+
+const FREE_DEVELOPER_ACCOUNT_UNALLOWED_CAPABILITIES: &[&str] = &[
+    "AUTOFILL_CREDENTIAL_PROVIDER",
+];
 
 impl DeveloperSession {
     pub async fn v1_list_capabilities(&self, team: &str) -> Result<CapabilitiesResponse, Error> {
@@ -21,6 +27,35 @@ impl DeveloperSession {
         let response_data: CapabilitiesResponse = serde_json::from_value(response)?;
         
         Ok(response_data)
+    }
+
+    pub async fn v1_request_capabilities_for_entitlements(
+        &self, 
+        team: &str,
+        id: &str, 
+        entitlements: &Dictionary
+    ) -> Result<(), Error> {
+        let capabilities = self.v1_list_capabilities(team).await?.data;
+        let entitlement_keys: HashSet<&str> = entitlements.keys().map(|k| k.as_str()).collect();
+
+        // Collect capability IDs that match entitlement keys and are allowed for free accounts
+        let capabilities_to_enable: Vec<String> = capabilities
+            .iter()
+            .filter(|cap| !FREE_DEVELOPER_ACCOUNT_UNALLOWED_CAPABILITIES.contains(&cap.id.as_str()))
+            .filter_map(|cap| {
+                cap.attributes.entitlements.as_ref()?.iter()
+                    .find(|e| entitlement_keys.contains(e.profile_key.as_str()))
+                    .map(|_| cap.id.clone())
+            })
+            .collect();
+
+        self.v1_update_app_id(
+            team,
+            id,
+            capabilities_to_enable.clone(),
+        ).await?;
+
+        Ok(())
     }
 }
 

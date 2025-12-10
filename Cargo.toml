@@ -3,7 +3,9 @@ resolver = "3"
 members = [
     "apps/plumeimpactor",
     "apps/plumesign",
-    "crates/core", "crates/shared",
+    "crates/core", 
+    "crates/gestalt", "crates/mach", 
+    "crates/shared",
     "crates/utils"
 ]
 
@@ -29,25 +31,13 @@ repository = "https://github.com/khcrysalis/plumestore"
 
 [workspace.dependencies]
 tokio = { version = "1.43", features = ["macros", "rt-multi-thread"] }
-
 # Application
 idevice = { git = "https://github.com/jkcoxson/idevice", rev = "ea61459", features = ["afc", "installation_proxy", "debug_proxy", "rsd", "tunnel_tcp_stack", "heartbeat", "usbmuxd", "house_arrest"] }
-zip = { version = "4.3", default-features = false, features = ["deflate"] }
 plist = "1.8.0"
-omnisette = { git = "https://github.com/PlumeImpactor/omnisette", rev = "c066ac2", package = "omnisette", features = ["remote-anisette-v3"] }
-
 # Errors
 thiserror = "2.0.16"
-
-# Signing
-pem = "3.0.5"
-x509-certificate = "0.24.0"
-apple-codesign = { version = "0.29.0", default-features = false }
-
 # Utils
 uuid = "1.18.1"
-reqwest = { version = "0.11.14", features = ["blocking", "json", "default-tls"] }
-serde_json = { version = "1" }
 futures = "0.3.31"
 
 [patch.crates-io]
