@@ -9,6 +9,7 @@ use uuid::Uuid;
 use zip::ZipArchive;
 use super::{Bundle, PlistInfoTrait};
 use crate::{Error, SignerApp, SignerOptions};
+use zip::write::FileOptions;
 
 #[derive(Debug, Clone)]
 pub struct Package {
@@ -81,13 +82,52 @@ impl Package {
         Ok(Bundle::new(app_dir)?)
     }
 
-    pub fn archive_package_bundle(self) -> Result<PathBuf, Error> {
+    pub fn get_archive_based_on_path(&self, path: PathBuf) -> Result<PathBuf, Error> {
+        if path.is_dir() {
+            self.clone().archive_package_bundle()
+        } else {
+            Ok(self.package_file.clone())
+        }
+    }
+
+    fn archive_package_bundle(self) -> Result<PathBuf, Error> {
         let zip_file_path = self.stage_dir.join("resigned.ipa");
         let file = fs::File::create(&zip_file_path)?;
         let mut zip = zip::ZipWriter::new(file);
+        let options = FileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
 
-        todo!("Implement packaging the app bundle back into an IPA file");
+        let payload_dir = self.stage_payload_dir;
         
+        fn add_dir_to_zip(
+            zip: &mut zip::ZipWriter<fs::File>,
+            path: &PathBuf,
+            prefix: &PathBuf,
+            options: &FileOptions<'_, zip::write::ExtendedFileOptions>,
+        ) -> Result<(), Error> {
+            for entry in fs::read_dir(path)? {
+                let entry = entry?;
+                let entry_path = entry.path();
+                let name = entry_path.strip_prefix(prefix)
+                    .map_err(|_| Error::PackageInfoPlistMissing)?
+                    .to_string_lossy()
+                    .to_string();
+
+                if entry_path.is_file() {
+                    zip.start_file(&name, options.clone())?;
+                    let mut f = fs::File::open(&entry_path)?;
+                    std::io::copy(&mut f, zip)?;
+                } else if entry_path.is_dir() {
+                    zip.add_directory(&name, options.clone())?;
+                    add_dir_to_zip(zip, &entry_path, prefix, options)?;
+                }
+            }
+            Ok(())
+        }
+
+        add_dir_to_zip(&mut zip, &payload_dir, &self.stage_dir, &options)?;
+        zip.finish()?;
+
         Ok(zip_file_path)
     }
 

@@ -15,7 +15,7 @@ use idevice::{
 };
 
 use plume_shared::{AccountCredentials, get_data_path};
-use plume_utils::{Device, Package, PlistInfoTrait, Signer, SignerInstallMode, SignerMode, get_device_for_id};
+use plume_utils::{Device, Package, Signer, SignerInstallMode, SignerMode, get_device_for_id};
 
 use wxdragon::prelude::*;
 use futures::StreamExt;
@@ -381,7 +381,9 @@ impl PlumeFrame {
                     let install_result = rt.block_on(async {
                         sender_clone.send(PlumeFrameMessage::WorkStarted).ok();
 
-                        let device = if device_id == u32::MAX.to_string() {
+                        let device = if signer_settings.install_mode == SignerInstallMode::Export {
+                            None
+                        } else if device_id == u32::MAX.to_string() {
                             signer_settings.install_mode = SignerInstallMode::InstallMac;
 
                             if signer_settings.mode == SignerMode::Adhoc {
@@ -550,9 +552,9 @@ impl PlumeFrame {
                                 }
                             }
                             SignerInstallMode::Export => {
-                                let _ = package.archive_package_bundle()
+                                let archive_path = package.get_archive_based_on_path(package_file)
                                     .map_err(|e| format!("Failed to archive package: {}", e))?;
-                                todo!("Implement export installation");
+                                sender_clone.send(PlumeFrameMessage::ArchivePathReady(archive_path)).ok();
                             }
                         }
 

@@ -3,7 +3,7 @@ use tokio::sync::{
     mpsc, 
     mpsc::error::TryRecvError
 };
-use std::sync::mpsc as std_mpsc;
+use std::{fs, path::PathBuf, sync::mpsc as std_mpsc};
 use plume_core::auth::Account;
 use plume_utils::{
     SignerOptions, 
@@ -27,6 +27,7 @@ pub enum PlumeFrameMessage {
     WorkStarted,
     WorkUpdated(String),
     WorkEnded,
+    ArchivePathReady(PathBuf),
     Error(String),
 }
 
@@ -221,6 +222,22 @@ impl PlumeFrameMessageHandler {
             PlumeFrameMessage::WorkEnded => {
                 self.plume_frame.work_page.set_status_text("Done.");
                 self.plume_frame.work_page.enable_back_button(true);
+            }
+            PlumeFrameMessage::ArchivePathReady(archive_path) => {
+                let dialog = FileDialog::builder(&self.plume_frame.frame)
+                    .with_message("Choose where to save the exported IPA")
+                    .with_style(FileDialogStyle::Save | FileDialogStyle::FileMustExist)
+                    .with_default_dir("exported.ipa")
+                    .with_wildcard(
+                        "IPA files (*.ipa)|*.ipa"
+                    )
+                    .build();
+
+                if dialog.show_modal() == wxdragon::id::ID_OK {
+                    if let Some(path) = dialog.get_path() {
+                        fs::copy(&archive_path, &path).ok();
+                    }
+                }
             }
             PlumeFrameMessage::Error(error_msg) => {
                 let dialog = MessageDialog::builder(&self.plume_frame.frame, &error_msg, "Error")

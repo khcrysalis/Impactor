@@ -271,12 +271,12 @@ impl InstallPage {
         settings.features.support_pro_motion = self.pro_motion_checkbox.get_value();
         settings.embedding.single_profile = self.skip_registering_extensions_checkbox.get_value();
         settings.install_mode = match self.install_choice.get_selection() {
-            Some(1) => SignerInstallMode::Export,
+            Some(0) => SignerInstallMode::Export,
             _ => SignerInstallMode::Install,
         };
         settings.mode = match self.adhoc_choice.get_selection() {
-            Some(0) => SignerMode::Pem,
-            Some(1) => SignerMode::Adhoc,
+            Some(1) => SignerMode::Pem,
+            Some(0) => SignerMode::Adhoc,
             _ => SignerMode::None, // TODO: handle no modify case
         };
         
