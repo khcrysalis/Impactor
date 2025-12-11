@@ -58,13 +58,17 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
         .with_style(ListBoxStyle::Sort)
         .build();
     let tweak_add_button = Button::builder(&panel)
-        .with_label("Add")
+        .with_label("Add Tweak")
+        .build();
+    let tweak_add_dir_button = Button::builder(&panel)
+        .with_label("Add Bundle")
         .build();
     let tweak_remove_button = Button::builder(&panel)
         .with_label("Remove")
         .build();
     let tweak_button_sizer = BoxSizer::builder(Orientation::Horizontal).build();
     tweak_button_sizer.add(&tweak_add_button, 0, SizerFlag::Right, 6);
+    tweak_button_sizer.add(&tweak_add_dir_button, 0, SizerFlag::Right, 6);
     tweak_button_sizer.add(&tweak_remove_button, 0, SizerFlag::All, 0);
     textfields_sizer.add(&bundle_name_label, 0, SizerFlag::Bottom, 6);
     textfields_sizer.add(&custom_name_textfield, 0, SizerFlag::Expand | SizerFlag::Left, 8);
@@ -169,7 +173,7 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
     
     tweak_add_button.on_click(move |_evt| {
         let dialog = FileDialog::builder(&frame_clone)
-            .with_message("Choose tweak file(s)")
+            .with_message("Choose .deb/.dylib files")
             .with_style(FileDialogStyle::Open | FileDialogStyle::FileMustExist | FileDialogStyle::Multiple)
             .with_default_dir(".")
             .with_wildcard(
@@ -181,6 +185,24 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
             let paths = dialog.get_paths();
             for path in paths {
                 listbox_clone.append(&path);
+            }
+        }
+    });
+    
+    let listbox_clone = tweak_listbox.clone();
+    let frame_clone = frame.clone();
+
+    tweak_add_dir_button.on_click(move |_evt| {
+        let dialog = DirDialog::builder(&frame_clone, "Choose .framework/.bundle/.appex dirs", ".")
+            .with_style(DirDialogStyle::default().bits() | DirDialogStyle::MustExist.bits())
+            .build();
+            
+        if dialog.show_modal() == wxdragon::id::ID_OK {
+            if let Some(path) = dialog.get_path() {
+                let path_str = path.to_string();
+                if path_str.ends_with(".framework") || path_str.ends_with(".bundle") || path_str.ends_with(".appex") {
+                    listbox_clone.append(&path);
+                }
             }
         }
     });
