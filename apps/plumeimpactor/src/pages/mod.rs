@@ -14,9 +14,9 @@ pub use work::{WorkPage, create_work_page};
 
 // TODO: investigate why github actions messes up weird sizing shit
 #[cfg(target_os = "linux")]
-pub const WINDOW_SIZE: (i32, i32) = (700, 660);
+pub const WINDOW_SIZE: (i32, i32) = (740, 660);
 #[cfg(not(target_os = "linux"))]
-pub const WINDOW_SIZE: (i32, i32) = (530, 410);
+pub const WINDOW_SIZE: (i32, i32) = (570, 410);
 
 // TODO: investigate why github actions messes up weird sizing shit
 #[cfg(target_os = "linux")]

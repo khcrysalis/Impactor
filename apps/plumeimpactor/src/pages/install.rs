@@ -67,7 +67,7 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
         .with_label("Remove")
         .build();
     let tweak_button_sizer = BoxSizer::builder(Orientation::Horizontal).build();
-    tweak_button_sizer.add(&tweak_add_button, 0, SizerFlag::Right, 6);
+    tweak_button_sizer.add(&tweak_add_button, 0, SizerFlag::Right, 8);
     tweak_button_sizer.add(&tweak_add_dir_button, 0, SizerFlag::Right, 6);
     tweak_button_sizer.add(&tweak_remove_button, 0, SizerFlag::All, 0);
     textfields_sizer.add(&bundle_name_label, 0, SizerFlag::Bottom, 6);
@@ -78,7 +78,7 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
     textfields_sizer.add(&custom_version_textfield, 0, SizerFlag::Expand | SizerFlag::Left | SizerFlag::Bottom, 8);
     textfields_sizer.add(&tweak_label, 0, SizerFlag::Top | SizerFlag::Bottom, 6);
     textfields_sizer.add(&tweak_listbox, 1, SizerFlag::Expand | SizerFlag::Left, 8);
-    textfields_sizer.add_sizer(&tweak_button_sizer, 0, SizerFlag::Left | SizerFlag::Top | SizerFlag::Bottom, 6);
+    textfields_sizer.add_sizer(&tweak_button_sizer, 0, SizerFlag::Left | SizerFlag::Top | SizerFlag::Bottom, 8);
 
     let checkbox_sizer = BoxSizer::builder(Orientation::Vertical).build();
     let general_label = StaticText::builder(&panel)
