@@ -8,6 +8,8 @@ use uuid::Uuid;
 
 use crate::{Bundle, Error, PlistInfoTrait, copy_dir_recursively};
 
+const ELLEKIT_BYTES: &[u8] = include_bytes!("./ellekit.deb");
+
 pub struct Tweak {
     path: PathBuf,
     app_bundle: PathBuf,
@@ -15,6 +17,21 @@ pub struct Tweak {
 }
 
 impl Tweak {
+    pub async fn install_ellekit(app_bundle: &Bundle) -> Result<(), Error> {
+        let stage_dir = env::temp_dir().join(format!("plume_ellekit_{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&stage_dir).await?;
+        
+        let deb_path = stage_dir.join("ellekit.deb");
+        tokio::fs::write(&deb_path, ELLEKIT_BYTES).await?;
+        
+        let tweak = Tweak::new(&deb_path, app_bundle).await?;
+        tweak.install_deb().await?;
+        
+        tokio::fs::remove_dir_all(&stage_dir).await.ok();
+        
+        Ok(())
+    }
+
     pub async fn new<P: AsRef<Path>>(tweak_path: P, app_bundle: &Bundle) -> Result<Self, Error> {
         let path = tweak_path.as_ref();
         if !path.exists() {

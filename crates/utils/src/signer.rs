@@ -120,6 +120,8 @@ impl Signer {
         }
 
         if let Some(tweak_files) = self.options.tweaks.as_ref() {
+            crate::Tweak::install_ellekit(&bundle).await?;
+
             for tweak_file in tweak_files {
                 let tweak = crate::Tweak::new(tweak_file, bundle).await?;
                 tweak.apply().await?;
