@@ -10,6 +10,7 @@ use plume_utils::{Bundle, Signer, SignerMode, SignerOptions};
 use crate::commands::account::{get_authenticated_account, teams};
 
 #[derive(Debug, Args)]
+#[command(arg_required_else_help = true)]
 pub struct SignArgs {
     /// Path to the app bundle to sign (.app or .ipa)
     #[arg(long = "bundle", value_name = "BUNDLE")]

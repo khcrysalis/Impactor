@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 pub mod sign;
 pub mod macho;
 pub mod account;
+pub mod device;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -22,10 +23,10 @@ pub struct Cli {
 pub enum Commands {
     /// Sign an iOS app bundle with certificate and provisioning profile
     Sign(sign::SignArgs),
-    
     /// Inspect Mach-O binaries
     MachO(macho::MachArgs),
-    
     /// Manage Apple Developer account authentication
     Account(account::AccountArgs),
+    /// Device management commands
+    Device(device::DeviceArgs),
 }

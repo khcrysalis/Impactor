@@ -7,8 +7,10 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+idevice.workspace = true
 plist.workspace = true
 tokio.workspace = true
+futures.workspace = true
 plume_core = { path = "../../crates/core", features = ["vendored-botan"] }
 plume_utils = { path = "../../crates/utils" }
 plume_shared = { path = "../../crates/shared" }

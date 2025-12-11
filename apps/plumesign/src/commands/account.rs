@@ -8,12 +8,14 @@ use plume_core::{AnisetteConfiguration, auth::Account, developer::DeveloperSessi
 use plume_shared::{AccountCredentials, get_data_path};
 
 #[derive(Debug, Args)]
+#[command(arg_required_else_help = true)]
 pub struct AccountArgs {
     #[command(subcommand)]
     pub command: AccountCommands,
 }
 
 #[derive(Debug, Subcommand)]
+#[command(arg_required_else_help = true)]
 pub enum AccountCommands {
     /// Login to Apple Developer account
     Login(LoginArgs),
@@ -28,6 +30,7 @@ pub enum AccountCommands {
 }
 
 #[derive(Debug, Args)]
+#[command(arg_required_else_help = true)]
 pub struct LoginArgs {
     /// Apple ID email
     #[arg(short = 'u', long = "username", value_name = "EMAIL")]

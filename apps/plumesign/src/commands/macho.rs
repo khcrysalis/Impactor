@@ -4,6 +4,7 @@ use anyhow::Result;
 use plume_core::{MachO, MachOExt};
 
 #[derive(Debug, Args)]
+#[command(arg_required_else_help = true)]
 pub struct MachArgs {
     #[arg(value_name = "BINARY")]
     pub binary: PathBuf,
