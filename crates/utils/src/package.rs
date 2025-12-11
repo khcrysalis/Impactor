@@ -44,6 +44,10 @@ impl Package {
         })
     }
 
+    pub fn package_file(&self) -> &PathBuf {
+        &self.package_file
+    }
+
     fn get_info_plist_from_archive(
         archive_path: &PathBuf,
         archive_entries: &[String],
@@ -82,24 +86,7 @@ impl Package {
         let file = fs::File::create(&zip_file_path)?;
         let mut zip = zip::ZipWriter::new(file);
 
-        let options = zip::write::FileOptions::<zip::write::ExtendedFileOptions>::default().compression_method(zip::CompressionMethod::Stored);
-
-        let mut buffer = Vec::new();
-        for entry in &self.archive_entries {
-            let full_path = self.stage_dir.join(entry);
-
-            if full_path.is_file() {
-                zip.start_file(entry, options.clone())?;
-                let mut f = fs::File::open(&full_path)?;
-                f.read_to_end(&mut buffer)?;
-                std::io::Write::write_all(&mut zip, &buffer)?;
-                buffer.clear();
-            } else if full_path.is_dir() {
-                zip.add_directory(entry, options.clone())?;
-            }
-        }
-
-        zip.finish()?;
+        todo!("Implement packaging the app bundle back into an IPA file");
         
         Ok(zip_file_path)
     }
