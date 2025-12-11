@@ -227,7 +227,7 @@ impl PlumeFrameMessageHandler {
                 let dialog = FileDialog::builder(&self.plume_frame.frame)
                     .with_message("Choose where to save the exported IPA")
                     .with_style(FileDialogStyle::Save | FileDialogStyle::FileMustExist)
-                    .with_default_dir("exported.ipa")
+                    .with_default_file("exported.ipa")
                     .with_wildcard(
                         "IPA files (*.ipa)|*.ipa"
                     )
