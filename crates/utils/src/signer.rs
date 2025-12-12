@@ -128,6 +128,20 @@ impl Signer {
             }
         }
 
+        if self.options.features.support_liquid_glass {
+            let executable_name = bundle.get_executable()
+                .ok_or(Error::BundleInfoPlistMissing)?;
+
+            let executable_path = bundle.bundle_dir().join(&executable_name);
+            if !executable_path.exists() {
+                return Err(Error::BundleInfoPlistMissing);
+            }
+
+            let mut macho = plume_core::MachO::new(&executable_path)?;
+            macho.replace_sdk_version("26.0.0")?;
+            macho.write_changes()?;
+        }
+
         Ok(())
     }
 

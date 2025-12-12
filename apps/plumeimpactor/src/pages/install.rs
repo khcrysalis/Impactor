@@ -19,6 +19,7 @@ pub struct InstallPage {
     skip_registering_extensions_checkbox: CheckBox,
     adhoc_choice: Choice,
     pub install_choice: Choice,
+    liquid_glass_checkbox: CheckBox,
     
     original_name: Option<String>,
     original_identifier: Option<String>,
@@ -110,6 +111,10 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
         .with_label("Only Register Main Bundle")
         .build();
     skip_registering_extensions_checkbox.set_tooltip("Only registers the main bundle for the app, skipping any extensions. This saves you from making multiple app ids.");
+    let liquid_glass_checkbox = CheckBox::builder(&panel)
+        .with_label("Force Liquid Glass (26+)")
+        .build();
+    liquid_glass_checkbox.set_tooltip("Patches app to SDK version 26.0, which tells iOS to use Liquid Glass.");
     let adhoc_items = ["Apple ID", "Adhoc", "No Modify"];
     let adhoc_choice = Choice::builder(&panel)
         .with_style(ChoiceStyle::Sort)
@@ -135,6 +140,7 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
     checkbox_sizer.add(&pro_motion_checkbox, 0, SizerFlag::Expand | SizerFlag::Top | SizerFlag::Left | SizerFlag::Bottom, 8);
     checkbox_sizer.add(&advanced_label, 0, SizerFlag::Top | SizerFlag::Bottom, 6);
     checkbox_sizer.add(&skip_registering_extensions_checkbox, 0, SizerFlag::Expand | SizerFlag::Left, 8);
+    checkbox_sizer.add(&liquid_glass_checkbox, 0, SizerFlag::Top | SizerFlag::Expand | SizerFlag::Left, 8);
     checkbox_sizer.add_sizer(&install_sizer, 0, SizerFlag::Expand | SizerFlag::Left, 8);
 
     settings_sizer.add_sizer(&textfields_sizer, 1, SizerFlag::Expand | SizerFlag::Right, 13);
@@ -231,6 +237,7 @@ pub fn create_install_page(frame: &Frame) -> InstallPage {
         skip_registering_extensions_checkbox,
         adhoc_choice,
         install_choice,
+        liquid_glass_checkbox,
         
         original_name: None,
         original_identifier: None,
@@ -249,6 +256,7 @@ impl InstallPage {
         self.skip_registering_extensions_checkbox.set_value(settings.embedding.single_profile);
         self.install_choice.set_selection(1);
         self.adhoc_choice.set_selection(1);
+        self.liquid_glass_checkbox.set_value(settings.features.support_liquid_glass);
         self.tweak_listbox.clear();
         
         if let Some(package) = package {
@@ -299,9 +307,10 @@ impl InstallPage {
         settings.mode = match self.adhoc_choice.get_selection() {
             Some(1) => SignerMode::Pem,
             Some(0) => SignerMode::Adhoc,
-            _ => SignerMode::None, // TODO: handle no modify case
+            _ => SignerMode::None,
         };
-        
+        settings.features.support_liquid_glass = self.liquid_glass_checkbox.get_value();
+
         let tweak_count = self.tweak_listbox.get_count();
         if tweak_count > 0 {
             let mut tweaks = Vec::new();

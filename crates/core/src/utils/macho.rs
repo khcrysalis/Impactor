@@ -94,6 +94,15 @@ impl MachO {
         self.write_changes()?;
         Ok(())
     }
+
+    pub fn replace_sdk_version(&mut self, new_version: &str) -> Result<(), Error> {
+        let machos = self.macho_file.iter_macho_mut();
+        for macho in machos {
+            macho.replace_sdk_version(new_version)?;
+        }
+        self.write_changes()?;
+        Ok(())
+    }
 }
 
 #[allow(dead_code)]
@@ -103,6 +112,7 @@ pub trait MachOExt {
     fn add_dylib_load_path(&mut self, path: &str) -> Result<(), Error>;
     fn remove_dylib_load_path(&mut self, path: &str) -> Result<(), Error>;
     fn replace_dylib_load_path(&mut self, old_path: &str, new_path: &str) -> Result<(), Error>;
+    fn replace_sdk_version(&mut self, new_version: &str) -> Result<(), Error>;
 }
 
 
@@ -391,6 +401,37 @@ impl<'a> MachOExt for MachOBinary<'a> {
             data[dylib_name_offset..dylib_name_offset + new_path_len]
                 .copy_from_slice(new_path.as_bytes());
             // Null terminator is already written by the zeroing above, padding bytes are also zeros
+        }
+
+        self.data = Box::leak(data.into_boxed_slice());
+
+        Ok(())
+    }
+    
+    fn replace_sdk_version(&mut self, new_version: &str) -> Result<(), Error> {
+        let macho = &self.macho;
+        let mut data = self.data.to_vec();
+
+        let version_parts: Vec<&str> = new_version.split('.').collect();
+        if version_parts.len() != 3 {
+            return Err(Error::Parse);
+        }
+        let major: u32 = version_parts[0].parse().map_err(|_| Error::Parse)?; 
+        let minor: u32 = version_parts[1].parse().map_err(|_| Error::Parse)?; 
+        let patch: u32 = version_parts[2].parse().map_err(|_| Error::Parse)?; 
+        let new_version_encoded = (major << 16) | (minor << 8) | patch;
+
+        for load_cmd in &macho.load_commands {
+            if load_cmd.command.cmd() == goblin::mach::load_command::LC_BUILD_VERSION {
+                let sdk_offset = load_cmd.offset + 16;
+                
+                if sdk_offset + 4 > data.len() {
+                    return Err(Error::Parse);
+                }
+                
+                data[sdk_offset..sdk_offset + 4]
+                    .copy_from_slice(&new_version_encoded.to_le_bytes());
+            }
         }
 
         self.data = Box::leak(data.into_boxed_slice());

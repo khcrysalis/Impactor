@@ -414,10 +414,10 @@ impl PlumeFrame {
                         } else {
                             None
                         };
-
-                        let mut package_file = package.package_file().clone();
-
+                        
                         sender_clone.send(PlumeFrameMessage::WorkUpdated("Preparing package for installation...".into())).ok();
+
+                        let package_file;
 
                         match signer_settings.mode {
                             SignerMode::Pem => {
@@ -514,7 +514,7 @@ impl PlumeFrame {
                                 
                                 package_file = bundle.bundle_dir().to_path_buf();
                             }
-                        }
+                        };
 
                         sender_clone.send(PlumeFrameMessage::WorkUpdated("Preparing...".into())).ok();
 

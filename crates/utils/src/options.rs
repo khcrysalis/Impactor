@@ -63,6 +63,7 @@ pub struct SignerFeatures {
     pub support_ipad_fullscreen: bool,
     pub support_game_mode: bool,
     pub support_pro_motion: bool,
+    pub support_liquid_glass: bool,
     pub remove_url_schemes: bool,
 }
 
