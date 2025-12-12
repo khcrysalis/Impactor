@@ -139,7 +139,6 @@ impl Signer {
 
             let mut macho = plume_core::MachO::new(&executable_path)?;
             macho.replace_sdk_version("26.0.0")?;
-            macho.write_changes()?;
         }
 
         Ok(())
