@@ -19,11 +19,13 @@ pub struct MachArgs {
     /// Replace an existing dylib dependency
     #[arg(long, value_names = &["OLD", "NEW"], num_args = 2)]
     pub replace_dylib: Option<Vec<String>>,
+    /// Set the SDK version (e.g., 26.0.0)
+    #[arg(long, value_name = "SDK_VERSION")]
+    pub sdk_version: Option<String>
 }
 
 pub async fn execute(args: MachArgs) -> Result<()> {
     let mut macho = MachO::new(&args.binary)?;
-
 
     if let Some(dylib_path) = &args.add_dylib {
         macho.add_dylib(dylib_path)?;
@@ -43,6 +45,11 @@ pub async fn execute(args: MachArgs) -> Result<()> {
         for path in d {
             println!("{path}");
         }
+        return Ok(());
+    }
+
+    if let Some(sdk_version) = &args.sdk_version {
+        macho.replace_sdk_version(sdk_version)?;
         return Ok(());
     }
 
