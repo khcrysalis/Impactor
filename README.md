@@ -36,6 +36,20 @@ Open-source, cross-platform, and feature rich iOS sideloading application. Suppo
 
 Visit [releases](https://github.com/khcrysalis/PlumeImpactor/releases) and get the latest version for your computer.
 
+## How it works
+
+How it works is that we try to replicate what [Xcode](https://developer.apple.com/xcode/) would do but in our own application, by using your Apple Account (which serves the purpose of being a "Developer") so we can request certificates, provisioning profiles, and register your device from Apple themselves. 
+
+Apple here is the provider of these and how we'll even be able to get apps on your phone. Unfortunately, without paying for their developer program you are limited to 7-days and a limited amount of apps/components you can register.
+
+The very first thing we do when trying to sideload an app, is register your idevice to their servers, then try to create a certificate. These last 365 days, we also store the key locally so you would need to copy these keys over to other machines, if you don't, Impactor will try to make a new one.
+
+After that, we try to register your app that you're trying to sideload, and try to provision it with proper entitlements gathered from the binary. Once we do, we have to download the neccessary files when signing, that being the certificate and provisioning profile that we just created.
+
+Lastly, we do all of the necessary modifications we need to the app you're trying to sideload, can range between tweaks, name changing, etc. Though most importantly, we need to *sign* the app using [apple-codesign-rs](https://github.com/indygreg/apple-platform-rs) so we can **install it** with [idevice](https://github.com/jkcoxson/idevice)!
+
+That's the entire gist of how this works! Of course its very short and brief, however feel free to look how it works since its open source :D
+
 ## Structure
 
 The project is seperated in multiple modules, all serve single or multiple uses depending on their importance.
@@ -49,7 +63,44 @@ The project is seperated in multiple modules, all serve single or multiple uses 
 | `crates/utils`       | Shared code between GUI and CLI, contains signing and modification logic, and helpers.                                        |
 | `crates/shared`      | Shared code between GUI and CLI, contains keychain functionality and shared datapaths.                                        |
 
-###### See how to compile & contribute to Impactor [here](./CONTRIBUTING.md).
+## Building
+
+Building is going to be a bit convoluted for each platform, each having their own unique specifications, but the best reference for building should be looking at how [GitHub actions](./.github/workflows/build.yml) does it.
+
+
+You need:
+- [Rust](https://rustup.rs/).
+- [CMake](https://cmake.org/download/) (and a c++ compiler).
+
+```sh
+# Applies our patches in ./patches 
+cargo install patch-crate
+cargo patch-crate --force && cargo fetch --locked
+
+# Building / testing
+cargo run --bin plumeimpactor
+```
+
+Extra requirements are shown below for building if you don't have these already, and trust me, it is convoluted.
+
+#### Linux Requirements
+
+```sh
+# Ubuntu/Debian
+sudo apt-get install libclang-dev pkg-config libgtk-3-dev libpng-dev libjpeg-dev libgl1-mesa-dev libglu1-mesa-dev libxkbcommon-dev libexpat1-dev libtiff-dev
+
+# Fedora/RHEL
+sudo dnf install clang-devel pkg-config gtk3-devel libpng-devel libjpeg-devel mesa-libGL-devel mesa-libGLU-devel libxkbcommon-devel expat-devel libtiff-devel
+```
+
+#### macOS Requirements
+
+- [Xcode](https://developer.apple.com/xcode/) or [Command Line Tools](https://developer.apple.com/download/all/).
+
+#### Windows Requirements
+
+- [Visual Studio 2022 Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022).
+- Windows 10/11 SDK.
 
 ## Sponsors
 
