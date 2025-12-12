@@ -48,6 +48,8 @@ impl SessionRequestTrait for Account {
             headers.insert("X-Apple-Locale", HeaderValue::from_str(&locale).unwrap());
         }
 
+        log::debug!("Sending QH request to {}", url);
+
         let response = if let Some(body) = body {
             let mut buf = Vec::new();
             plist::to_writer_xml(&mut buf, &body)?;
@@ -63,7 +65,9 @@ impl SessionRequestTrait for Account {
 
         let response = response.text().await?;
         let response_data: Dictionary = plist::from_bytes(response.as_bytes())?;
-        
+
+        log::debug!("Received QH response bytes from request: {:?}", response.as_bytes().len());
+
         Ok(response_data)
     }
     
@@ -111,6 +115,8 @@ impl SessionRequestTrait for Account {
             );
         }
 
+        log::debug!("Sending V1 request to {}", url);
+
         let response = match (request_type, body) {
             (Some(RequestType::Post), Some(body)) => {
                 self.client
@@ -143,6 +149,8 @@ impl SessionRequestTrait for Account {
 
         let response = response.text().await?;
         let response_data: Value = serde_json::from_str(&response)?;
+        
+        log::debug!("Received V1 response bytes from request: {:?}", response.as_bytes().len());
 
         Ok(response_data)
     }

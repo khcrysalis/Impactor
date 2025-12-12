@@ -46,12 +46,13 @@ pub async fn execute(args: DeviceArgs) -> anyhow::Result<()> {
 
     if let Some(app_path) = args.install {
         if cfg!(target_arch = "aarch64") && args.mac {
-            println!("Installing app at {:?} to connected Mac", app_path);
+            log::info!("Installing app at {:?} to connected Mac", app_path);
+
             device.install_app_mac(&app_path).await?;
         } else {
-            println!("Installing app at {:?} to device {}", app_path, device.name);
+            log::info!("Installing app at {:?} to device {}", app_path, device.name);
             device.install_app(&app_path, |progress| async move {
-                println!("{}", progress);
+                log::info!("{}", progress);
             }).await?;
         }
 
@@ -60,7 +61,7 @@ pub async fn execute(args: DeviceArgs) -> anyhow::Result<()> {
 
     if args.pairing {
         if let Some(pairing_path) = args.pairing_path {
-            println!("Installing pairing record from {:?} to device {}", pairing_path, device.name);
+            log::info!("Installing pairing record from {:?} to device {}", pairing_path, device.name);
             let app_identifier = if let Some(identifier) = args.pairing_app_identifier {
                 identifier
             } else {

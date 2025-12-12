@@ -11,6 +11,8 @@ idevice.workspace = true
 plist.workspace = true
 tokio.workspace = true
 futures.workspace = true
+env_logger.workspace = true
+log.workspace = true
 plume_core = { path = "../../crates/core", features = ["vendored-botan"] }
 plume_utils = { path = "../../crates/utils" }
 plume_shared = { path = "../../crates/shared" }

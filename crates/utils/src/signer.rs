@@ -233,6 +233,7 @@ impl Signer {
 "#.to_string();
 
         for bundle in &bundles {
+            log::debug!("Signing bundle: {}", bundle.bundle_dir().display());
             Self::sign_single_bundle(
                 self,
                 bundle, 

@@ -181,7 +181,7 @@ impl<'a> MachOExt for MachOBinary<'a> {
         // for our modified binary, then using MachO struct we can make our universal bin
 
         if dylib_exists {
-            println!("Dylib already exists in binary: {}", path);
+            log::warn!("Dylib already exists in binary: {}", path);
             return Ok(());
         }
         
@@ -293,7 +293,7 @@ impl<'a> MachOExt for MachOBinary<'a> {
             .collect();
 
         if replacements.is_empty() {
-            println!("No matching dylib load commands found for path: {}", path);
+            log::warn!("No matching dylib load commands found for path: {}", path);
             return Ok(());
         }
 
@@ -362,7 +362,7 @@ impl<'a> MachOExt for MachOBinary<'a> {
                 .collect();
 
         if replacements.is_empty() {
-            println!("No matching dylib load commands found for path: {}", old_path);
+            log::warn!("No matching dylib load commands found for path: {}", old_path);
             return Ok(());
         }
 

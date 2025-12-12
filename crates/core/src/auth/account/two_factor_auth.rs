@@ -78,8 +78,9 @@ impl Account {
     }
 
     pub async fn verify_2fa(&self, code: String) -> Result<LoginState, Error> {
+        log::debug!("Verifying SMS 2FA with code: {}", code);
+
         let headers = self.build_2fa_headers(false);
-        // println!("Recieved code: {}", code);
         let res = self
             .client
             .get("https://gsa.apple.com/grandslam/GsService2/validate")
@@ -103,11 +104,10 @@ impl Account {
         code: String,
         mut body: VerifyBody,
     ) -> Result<LoginState, Error> {
+        log::debug!("Verifying SMS 2FA with code: {}", code);
+
         let headers = self.build_2fa_headers(true).await;
-        // println!("Recieved code: {}", code);
-
         body.security_code = Some(VerifyCode { code });
-
         let res = self
             .client
             .post("https://gsa.apple.com/auth/verify/phone/securitycode")

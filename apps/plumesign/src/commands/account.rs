@@ -115,7 +115,7 @@ pub async fn get_authenticated_account() -> Result<DeveloperSession> {
 
 async fn login(args: LoginArgs) -> Result<()> {
     let tfa_closure = || -> std::result::Result<String, String> {
-        println!("Enter 2FA code: ");
+        log::info!("Enter 2FA code: ");
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).map_err(|e| e.to_string())?;
         std::result::Result::Ok(input.trim().to_string())
@@ -127,7 +127,7 @@ async fn login(args: LoginArgs) -> Result<()> {
     let username = if let Some(user) = args.username {
         user
     } else {
-        println!("Enter Apple ID email: ");
+        log::info!("Enter Apple ID email: ");
         let mut input = String::new();
         std::io::stdin().read_line(&mut input)?;
         input.trim().to_string()
@@ -156,13 +156,16 @@ async fn login(args: LoginArgs) -> Result<()> {
         password,
     )?;
 
-    println!("Successfully logged in and credentials saved to keychain.");
+    log::info!("Successfully logged in and credentials saved to keychain.");
+
     Ok(())
 }
 
 async fn logout() -> Result<()> {
     AccountCredentials.delete_password()?;
-    println!("Successfully logged out and removed credentials from keychain.");
+    
+    log::info!("Successfully logged out and removed credentials from keychain.");
+    
     Ok(())
 }
 
@@ -178,7 +181,8 @@ async fn certificates(args: CertificatesArgs) -> Result<()> {
     let p = session.qh_list_certs(&team_id)
         .await?
         .certificates;
-    print!("{:#?}", p);
+    
+    log::info!("{:#?}", p);
     
     Ok(())
 }
@@ -195,7 +199,8 @@ async fn devices(args: DevicesArgs) -> Result<()> {
     let p = session.qh_list_devices(&team_id)
         .await?
         .devices;
-    print!("{:#?}", p);
+
+    log::info!("{:#?}", p);
 
     Ok(())
 }
@@ -212,7 +217,8 @@ async fn register_device(args: RegisterDeviceArgs) -> Result<()> {
     let p = session.qh_add_device(&team_id, &args.name, &args.udid)
         .await?
         .device;
-    print!("{:#?}", p);
+
+    log::info!("{:#?}", p);
 
     Ok(())
 }

@@ -165,7 +165,7 @@ impl CertificateIdentity {
                 "RSA PRIVATE KEY" => {
                     self.key = Some(Box::new(InMemoryPrivateKey::from_pkcs1_der(pem.contents())?));
                 }
-                tag => println!("(unhandled PEM tag {}; ignoring)", tag),
+                tag => log::debug!("(unhandled PEM tag {}; ignoring)", tag),
             }
         }
 
@@ -260,6 +260,7 @@ impl CertificateIdentity {
                                     .await
                                     .is_ok()
                                 {
+                                    log::warn!("Revoked certificate with serial number {}", cid);
                                     revoked_any = true;
                                     break;
                                 }

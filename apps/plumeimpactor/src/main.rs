@@ -6,6 +6,7 @@ mod handlers;
 
 #[tokio::main]
 async fn main() {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug")).init();
     _ = rustls::crypto::ring::default_provider().install_default().unwrap();
 
     let _ = wxdragon::main(|_| {

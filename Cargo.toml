@@ -35,6 +35,8 @@ tokio = { version = "1.43", features = ["macros", "rt-multi-thread"] }
 idevice = { git = "https://github.com/jkcoxson/idevice", rev = "ea61459", features = ["afc", "installation_proxy", "debug_proxy", "rsd", "tunnel_tcp_stack", "heartbeat", "usbmuxd", "house_arrest"] }
 plist = "1.8.0"
 # Errors
+env_logger = "0.11.8"
+log = "0.4.28"
 thiserror = "2.0.16"
 # Utils
 uuid = "1.18.1"
