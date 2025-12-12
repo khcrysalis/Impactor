@@ -508,7 +508,12 @@ impl PlumeFrame {
 
                                 package_file = bundle.bundle_dir().to_path_buf();
                             }
-                            _ => {}
+                            _ => {
+                                let bundle = package.get_package_bundle()
+                                    .map_err(|e| format!("Failed to get package bundle: {}", e))?;
+                                
+                                package_file = bundle.bundle_dir().to_path_buf();
+                            }
                         }
 
                         sender_clone.send(PlumeFrameMessage::WorkUpdated("Preparing...".into())).ok();
