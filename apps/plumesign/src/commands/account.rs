@@ -106,7 +106,7 @@ pub async fn get_authenticated_account() -> Result<DeveloperSession> {
         std::result::Result::Ok((email.clone(), password.clone()))
     };
 
-    println!("Authenticating with Apple...");
+    log::info!("Authenticating with Apple...");
     let account = Account::login(login_closure, tfa_closure, anisette_config).await
         .map_err(|e| anyhow::anyhow!("Authentication failed: {}. Please login again.", e))?;
     
