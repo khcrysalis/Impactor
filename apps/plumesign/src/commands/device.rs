@@ -25,7 +25,7 @@ pub struct DeviceArgs {
     #[arg(long = "pairing-app-identifier", value_name = "IDENTIFIER")]
     pub pairing_app_identifier: Option<String>,
     /// Install to connected Mac (arm64 only)
-    #[cfg(target_arch = "aarch64")]
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     #[arg(short = 'm', long = "mac", value_name = "MAC", conflicts_with = "udid")]
     pub mac: bool,
 }
@@ -33,7 +33,7 @@ pub struct DeviceArgs {
 pub async fn execute(args: DeviceArgs) -> anyhow::Result<()> {
     let device = if let Some(udid) = args.udid {
         get_device_for_id(&udid).await?
-    } else if cfg!(target_arch = "aarch64") && args.mac {
+    } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) && args.mac {
         Device {
             name: "My Mac".to_string(),
             udid: String::new(),
@@ -45,15 +45,29 @@ pub async fn execute(args: DeviceArgs) -> anyhow::Result<()> {
     };
 
     if let Some(app_path) = args.install {
-        if cfg!(target_arch = "aarch64") && args.mac {
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        if args.mac {
             log::info!("Installing app at {:?} to connected Mac", app_path);
-
             device.install_app_mac(&app_path).await?;
-        } else {
+            return Ok(())
+        }
+        
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        {
             log::info!("Installing app at {:?} to device {}", app_path, device.name);
             device.install_app(&app_path, |progress| async move {
-                log::info!("{}", progress);
+            log::info!("{}", progress);
             }).await?;
+            return Ok(())
+        }
+        
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        if !args.mac {
+            log::info!("Installing app at {:?} to device {}", app_path, device.name);
+            device.install_app(&app_path, |progress| async move {
+            log::info!("{}", progress);
+            }).await?;
+            return Ok(())
         }
 
         return Ok(())
