@@ -33,14 +33,20 @@ pub struct DeviceArgs {
 pub async fn execute(args: DeviceArgs) -> anyhow::Result<()> {
     let device = if let Some(udid) = args.udid {
         get_device_for_id(&udid).await?
-    } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) && args.mac {
-        Device {
-            name: "My Mac".to_string(),
-            udid: String::new(),
-            device_id: 0,
-            usbmuxd_device: None,
-        }
     } else {
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        if args.mac {
+            Device {
+                name: "My Mac".to_string(),
+                udid: String::new(),
+                device_id: 0,
+                usbmuxd_device: None,
+            }
+        } else {
+            devices().await?
+        }
+        
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
         devices().await?
     };
 
@@ -52,25 +58,10 @@ pub async fn execute(args: DeviceArgs) -> anyhow::Result<()> {
             return Ok(())
         }
         
-        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-        {
-            log::info!("Installing app at {:?} to device {}", app_path, device.name);
-            device.install_app(&app_path, |progress| async move {
+        log::info!("Installing app at {:?} to device {}", app_path, device.name);
+        device.install_app(&app_path, |progress| async move {
             log::info!("{}", progress);
-            }).await?;
-            return Ok(())
-        }
-        
-        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-        if !args.mac {
-            log::info!("Installing app at {:?} to device {}", app_path, device.name);
-            device.install_app(&app_path, |progress| async move {
-            log::info!("{}", progress);
-            }).await?;
-            return Ok(())
-        }
-
-        return Ok(())
+        }).await?;
     }
 
     if args.pairing {
