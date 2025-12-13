@@ -164,7 +164,7 @@ jobs:
 
       - name: Build (macOS ${{ matrix.arch }})
         run: |
-          cargo build --bin ${{ env.BINARY_NAME }} --release --target ${{ matrix.target }}
+          cargo build --workspace --bins --locked --release
           strip target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}
           strip target/${{ matrix.target }}/release/${{ env.BINARY_NAME_CLI }}
           cp target/${{ matrix.target }}/release/${{ env.BINARY_NAME }} build/out/${{ env.BINARY_NAME }}-${{ matrix.arch }}
