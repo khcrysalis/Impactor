@@ -19,7 +19,7 @@ fn embed_windows_manifest(name: &str) {
             .supported_os(Windows7..=Windows10)
             .active_code_page(ActiveCodePage::Utf8)
             .heap_type(embed_manifest::manifest::HeapType::SegmentHeap)
-            .dpi_awareness(embed_manifest::manifest::DpiAwareness::Unaware)
+            .dpi_awareness(embed_manifest::manifest::DpiAwareness::PerMonitorV2)
             .long_path_aware(Setting::Enabled);
 
         embed_manifest(manifest).unwrap();
