@@ -33,7 +33,7 @@ impl DeveloperSession {
     }
 
     pub async fn v1_update_app_id(&self, team: &str, app_id: &str, capabilities: Vec<String>) -> Result<AppIDResponse, Error> {
-        let response_data = self.v1_get_app_id(team, app_id).await?;        
+        let response_data = self.v1_get_app_id(team, app_id).await?;
         let app_id = response_data.ok_or(Error::DeveloperSessionRequestFailed)?;
 
         let endpoint = developer_endpoint!(&format!("/v1/bundleIds/{}", app_id.id));

@@ -45,13 +45,9 @@ impl SessionRequestTrait for DeveloperSession {
                 request.insert(key, value);
             }
         }
-        
-        let response = self.account.qh_send_request(url, Some(request)).await;
-        let response = match response {
-            Ok(resp) => resp,
-            Err(_) => return Err(Error::DeveloperSessionRequestFailed),
-        };
-        
+
+        let response = self.account.qh_send_request(url, Some(request)).await?;
+
         let response_data: ResponseMeta = plist::from_value(&Value::Dictionary(response.clone()))?;
         if response_data.result_code.as_signed().unwrap_or(0) != 0 {
             let msg = response_data.result_string.as_deref().unwrap_or("Unknown");
@@ -63,11 +59,7 @@ impl SessionRequestTrait for DeveloperSession {
     }
     
     async fn v1_send_request(&self, url: &str, body: Option<serde_json::Value>, request_type: Option<RequestType>) -> Result<serde_json::Value, Error> {
-        let response = self.account.v1_send_request(url, body, request_type).await;
-        let response = match response {
-            Ok(resp) => resp,
-            Err(_) => return Err(Error::DeveloperSessionRequestFailed),
-        };
+        let response = self.account.v1_send_request(url, body, request_type).await?;
         
         let response_data: serde_json::Value = serde_json::from_value(response.clone())?;
         if let Some(errors) = response_data.get("errors").and_then(|v| v.as_array()) {

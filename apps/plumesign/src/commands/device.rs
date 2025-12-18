@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::Ok;
+use anyhow::{Ok, Result, Error};
 use clap::Args;
 use dialoguer::Select;
 use idevice::{IdeviceService, installation_proxy::InstallationProxyClient, usbmuxd::{UsbmuxdAddr, UsbmuxdConnection}};
@@ -30,24 +30,25 @@ pub struct DeviceArgs {
     pub mac: bool,
 }
 
-pub async fn execute(args: DeviceArgs) -> anyhow::Result<()> {
-    let device = if let Some(udid) = args.udid {
-        get_device_for_id(&udid).await?
-    } else {
+pub async fn execute(args: DeviceArgs) -> Result<()> {
+    let device = {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-        if args.mac {
-            Device {
-                name: "My Mac".to_string(),
-                udid: String::new(),
-                device_id: 0,
-                usbmuxd_device: None,
+        {
+            if args.mac {
+                Device {
+                    name: "My Mac".to_string(),
+                    udid: String::new(),
+                    device_id: 0,
+                    usbmuxd_device: None,
+                }
+            } else {
+                select_device(args.udid).await?
             }
-        } else {
-            devices().await?
         }
-        
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-        devices().await?
+        {
+            select_device(args.udid).await?
+        }
     };
 
     if let Some(app_path) = args.install {
@@ -79,35 +80,38 @@ pub async fn execute(args: DeviceArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn devices() -> Result<Device, anyhow::Error> {
-    let mut muxer = UsbmuxdConnection::default().await
-        .map_err(|e| anyhow::anyhow!("Failed to get muxer: {}", e))?;
-
-    let devices = muxer.get_devices().await
-        .map_err(|e| anyhow::anyhow!("Failed to get devices: {}", e))?;
-
+pub async fn select_device(device_udid: Option<String>) -> Result<Device> {
+    if let Some(udid) = device_udid {
+        return Ok(get_device_for_id(&udid).await?);
+    }
+    
+    let mut muxer = UsbmuxdConnection::default().await?;
+    let devices = muxer.get_devices().await?;
+    
+    if devices.is_empty() {
+        return Err(anyhow::anyhow!("No devices connected. Please connect a device or specify a UDID with --device-udid"));
+    }
+    
     let device_futures: Vec<_> = devices.into_iter()
-        .map(|d| {
-            Device::new(d)
-        })
+        .map(|d| Device::new(d))
         .collect();
-
+    
     let devices = futures::future::join_all(device_futures).await;
-
+    
     let device_names: Vec<String> = devices.iter()
         .map(|d| d.to_string())
         .collect();
-
+    
     let selection = Select::new()
+        .with_prompt("Select a device to register and install to")
         .items(&device_names)
         .default(0)
-        .with_prompt("Select a connected device")
         .interact()?;
-
+    
     Ok(devices[selection].clone())
 }
 
-async fn apps(device: &Device) -> Result<String, anyhow::Error> {
+async fn apps(device: &Device) -> Result<String, Error> {
     const INSTALLATION_LABEL: &str = "App Installation";
     let p = device.usbmuxd_device.clone().unwrap().to_provider(
         UsbmuxdAddr::from_env_var().unwrap_or_default(),

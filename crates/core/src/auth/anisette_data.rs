@@ -84,7 +84,7 @@ impl AnisetteData {
             headers.insert("prkgen".to_owned(), "true".to_owned());
             headers.insert("svct".to_owned(), "iCloud".to_owned());
         }
-        
+
         headers
     }
 
@@ -103,6 +103,8 @@ impl AnisetteData {
             .iter()
             .map(|(k, v)| (k.to_lowercase(), v.to_lowercase()))
             .collect::<HashMap<String, String>>();
+
+        log::debug!("Anisette headers: {:?}", headers);
 
         match headers.get(&header.to_lowercase()) {
             Some(v) => Ok(v.to_string()),
