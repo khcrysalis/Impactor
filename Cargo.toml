@@ -5,8 +5,8 @@ members = [
     "apps/plumesign",
     "crates/core",
     "crates/gestalt",
-    "crates/shared", "crates/storage",
-    "crates/utils"
+    "crates/shared",
+    "crates/types"
 ]
 
 [workspace.package]

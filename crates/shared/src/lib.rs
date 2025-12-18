@@ -1,7 +1,3 @@
-mod keychain;
-
-pub use keychain::AccountCredentials;
-
 use std::{env, fs, path::{Path, PathBuf}};
 
 pub fn get_data_path() -> PathBuf {

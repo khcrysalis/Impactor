@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod developer;
+pub mod store;
 mod utils;
 
 use plist::Dictionary;

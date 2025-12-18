@@ -4,13 +4,12 @@ use tokio::sync::{
     mpsc::error::TryRecvError
 };
 use std::{fs, path::PathBuf, sync::mpsc as std_mpsc};
-use plume_core::auth::Account;
 use plume_utils::{
     SignerOptions, 
     Package, 
     Device
 };
-use plume_shared::AccountCredentials;
+use plume_core::store::{AccountStore, GsaAccount};
 use crate::frame::PlumeFrame;
 
 #[derive(Debug)]
@@ -19,8 +18,12 @@ pub enum PlumeFrameMessage {
     DeviceDisconnected(u32),
     PackageSelected(Package),
     PackageDeselected,
-    AccountLogin(Account),
-    AccountDeleted,
+    AccountAdded(String),
+    AccountRemoved(String),
+    AccountSelected(String),
+    RequestAccountAdd(GsaAccount),
+    RequestAccountRemove(usize),
+    RequestAccountSelect(usize),
     InstallButtonStateChanged,
     AwaitingTwoFactorCode(std_mpsc::Sender<Result<String, String>>),
     RequestTeamSelection(Vec<String>, std_mpsc::Sender<Result<i32, String>>),
@@ -39,16 +42,17 @@ pub struct PlumeFrameMessageHandler {
     pub usbmuxd_selected_device_id: Option<String>,
     // --- ipa ---
     pub package_selected: Option<Package>,
-    // --- account ---
-    pub account_credentials: Option<Account>,
     // --- signer settings ---
     pub signer_settings: SignerOptions,
+    // --- account store ---
+    pub account_store: AccountStore,
 }
 
 impl PlumeFrameMessageHandler {
     pub fn new(
         receiver: mpsc::UnboundedReceiver<PlumeFrameMessage>,
         plume_frame: PlumeFrame,
+        account_store: AccountStore,
     ) -> Self {
         let signer_settings = SignerOptions::default();
         Self {
@@ -57,8 +61,8 @@ impl PlumeFrameMessageHandler {
             usbmuxd_device_list: Vec::new(),
             usbmuxd_selected_device_id: None,
             package_selected: None,
-            account_credentials: None,
             signer_settings,
+            account_store,
         }
     }
 
@@ -149,34 +153,70 @@ impl PlumeFrameMessageHandler {
                 self.plume_frame.add_ipa_button.enable(true);
                 self.handle_message(PlumeFrameMessage::InstallButtonStateChanged);
             }
-            PlumeFrameMessage::AccountLogin(account) => {
-                let (first, last) = account.get_name();
+            PlumeFrameMessage::AccountAdded(email) => {
                 let dialog = MessageDialog::builder(
                     &self.plume_frame.frame, 
-                    &format!("Logged in as {} {}", first, last), 
-                    "Signed In"
+                    &format!("Account {} has been added successfully", email), 
+                    "Account Added"
                 )
                 .with_style(MessageDialogStyle::OK | MessageDialogStyle::IconInformation)
                 .build();
                 dialog.show_modal();
-                self.account_credentials = Some(account);
                 
                 self.plume_frame.login_dialog.dialog.hide();
-                self.plume_frame.settings_dialog.set_account_name(Some((first, last)));
             }
-            PlumeFrameMessage::AccountDeleted => {
-                if self.account_credentials.is_none() {
-                    return;
+            PlumeFrameMessage::AccountRemoved(email) => {
+                let dialog = MessageDialog::builder(
+                    &self.plume_frame.frame, 
+                    &format!("Account {} has been removed", email), 
+                    "Account Removed"
+                )
+                .with_style(MessageDialogStyle::OK | MessageDialogStyle::IconInformation)
+                .build();
+                dialog.show_modal();
+            }
+            PlumeFrameMessage::AccountSelected(_email) => {
+                // Account selection updated
+            }
+            PlumeFrameMessage::RequestAccountAdd(gsa_account) => {
+                let email = gsa_account.email.clone();
+                match self.account_store.accounts_add_sync(gsa_account) {
+                    Ok(_) => {
+                        self.handle_message(PlumeFrameMessage::AccountAdded(email));
+                        self.refresh_account_list_ui();
+                    }
+                    Err(e) => {
+                        self.handle_message(PlumeFrameMessage::Error(format!("Failed to save account: {}", e)));
+                    }
                 }
-                
-                let creds = AccountCredentials;
-                if let Err(e) = creds.delete_password() {
-                    self.handle_message(PlumeFrameMessage::Error(format!("Failed to delete account credentials: {}", e)));
-                    return;
+            }
+            PlumeFrameMessage::RequestAccountRemove(index) => {
+                let accounts: Vec<_> = self.account_store.accounts().keys().cloned().collect();
+                if let Some(email) = accounts.get(index).cloned() {
+                    match self.account_store.accounts_remove_sync(&email) {
+                        Ok(_) => {
+                            self.handle_message(PlumeFrameMessage::AccountRemoved(email));
+                            self.refresh_account_list_ui();
+                        }
+                        Err(e) => {
+                            self.handle_message(PlumeFrameMessage::Error(format!("Failed to remove account: {}", e)));
+                        }
+                    }
                 }
-                
-                self.account_credentials = None;
-                self.plume_frame.settings_dialog.set_account_name(None);
+            }
+            PlumeFrameMessage::RequestAccountSelect(index) => {
+                let accounts: Vec<_> = self.account_store.accounts().keys().cloned().collect();
+                if let Some(email) = accounts.get(index).cloned() {
+                    match self.account_store.account_select_sync(&email) {
+                        Ok(_) => {
+                            self.handle_message(PlumeFrameMessage::AccountSelected(email));
+                            self.refresh_account_list_ui();
+                        }
+                        Err(e) => {
+                            self.handle_message(PlumeFrameMessage::Error(format!("Failed to select account: {}", e)));
+                        }
+                    }
+                }
             }
             PlumeFrameMessage::InstallButtonStateChanged => {
                 let export = self.plume_frame.install_page.install_choice.get_selection() == Some(0);
@@ -299,5 +339,26 @@ impl PlumeFrameMessageHandler {
         } else {
             self.usbmuxd_selected_device_id = None;
         }
+    }
+}
+
+// MARK: - Account Store Helpers
+
+impl PlumeFrameMessageHandler {
+    pub fn refresh_account_list_ui(&self) {
+        let selected_email = self.account_store.selected_account().map(|a| a.email.clone());
+        let mut account_list = Vec::new();
+        
+        for (email, account) in self.account_store.accounts() {
+            let is_selected = selected_email.as_ref() == Some(email);
+            account_list.push((
+                email.clone(),
+                account.first_name.clone(),
+                account.last_name.clone(),
+                is_selected,
+            ));
+        }
+        
+        self.plume_frame.settings_dialog.refresh_account_list(account_list);
     }
 }

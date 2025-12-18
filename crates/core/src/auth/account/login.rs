@@ -11,6 +11,7 @@ use crate::auth::account::{check_error, parse_response};
 use crate::auth::anisette_data::AnisetteData;
 use crate::auth::{Account, ChallengeRequest, ChallengeRequestBody, GSA_ENDPOINT, InitRequest, InitRequestBody,LoginState, RequestHeader};
 
+#[macro_export]
 macro_rules! plist_get_string {
     ($base:expr, $( $path:literal )+, $final_key:literal) => {{
         let mut current_val = $base;
@@ -108,49 +109,37 @@ impl Account {
         username: &str,
         password: &str,
     ) -> Result<LoginState, Error> {
+        let username_for_spd = username.to_string();
         let srp_client = SrpClient::<Sha256>::new(&G_2048);
         let a: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
         let a_pub = srp_client.compute_public_ephemeral(&a);
 
-        let valid_anisette = self.get_anisette().await;
+        let anisette = self.get_anisette().await;
 
         let mut gsa_headers = HeaderMap::new();
-        gsa_headers.insert(
-            "Content-Type",
-            HeaderValue::from_str("text/x-xml-plist").unwrap(),
-        );
+        gsa_headers.insert("Content-Type", HeaderValue::from_str("text/x-xml-plist").unwrap());
         gsa_headers.insert("Accept", HeaderValue::from_str("*/*").unwrap());
-        gsa_headers.insert(
-            "User-Agent",
-            HeaderValue::from_str("akd/1.0 CFNetwork/978.0.7 Darwin/18.7.0").unwrap(),
-        );
-        gsa_headers.insert(
-            "X-MMe-Client-Info",
-            HeaderValue::from_str(&valid_anisette.get_header("x-mme-client-info")?).unwrap(),
-        );
+        gsa_headers.insert("User-Agent", HeaderValue::from_str("akd/1.0 CFNetwork/978.0.7 Darwin/18.7.0").unwrap());
+        gsa_headers.insert("X-MMe-Client-Info", HeaderValue::from_str(&anisette.get_header("x-mme-client-info")?).unwrap());
 
-        let header = RequestHeader {
-            version: "1.0.1".to_string(),
-        };
-        let body = InitRequestBody {
+        let header = RequestHeader { version: "1.0.1".to_string() };
+        let init_body = InitRequestBody {
             a_pub: plist::Value::Data(a_pub),
-            cpd: valid_anisette.to_plist(true, false, false),
+            cpd: anisette.to_plist(true, false, false),
             operation: "init".to_string(),
             ps: vec!["s2k".to_string(), "s2k_fo".to_string()],
             username: username.to_string(),
         };
 
-        let packet = InitRequest {
+        let init_packet = InitRequest {
             header: header.clone(),
-            request: body,
+            request: init_body,
         };
 
         let mut buffer = Vec::new();
-        plist::to_writer_xml(&mut buffer, &packet)?;
-        let buffer = String::from_utf8(buffer).unwrap();
+        plist::to_writer_xml(&mut buffer, &init_packet)?;
 
-        let res = self
-            .client
+        let res = self.client
             .post(GSA_ENDPOINT)
             .headers(gsa_headers.clone())
             .body(buffer)
@@ -158,10 +147,7 @@ impl Account {
             .await;
 
         let res = parse_response(res).await?;
-        let err_check = check_error(&res);
-        if err_check.is_err() {
-            return Err(err_check.err().unwrap());
-        }
+        check_error(&res)?;
 
         let salt = res.get("s").unwrap().as_data().unwrap();
         let b_pub = res.get("B").unwrap().as_data().unwrap();
@@ -179,60 +165,54 @@ impl Account {
         );
 
         let verifier: SrpClientVerifier<Sha256> = srp_client
-            .process_reply(&a, &username.as_bytes(), &password_buf, salt, b_pub)
+            .process_reply(&a, username.as_bytes(), &password_buf, salt, b_pub)
             .unwrap();
 
-        let m = verifier.proof();
-
-        let body = ChallengeRequestBody {
-            m: plist::Value::Data(m.to_vec()),
+        let challenge_body = ChallengeRequestBody {
+            m: plist::Value::Data(verifier.proof().to_vec()),
             c: c.to_string(),
-            cpd: valid_anisette.to_plist(true, false, false),
+            cpd: anisette.to_plist(true, false, false),
             operation: "complete".to_string(),
             username: username.to_string(),
         };
 
-        let packet = ChallengeRequest {
+        let challenge_packet = ChallengeRequest {
             header,
-            request: body,
+            request: challenge_body,
         };
 
         let mut buffer = Vec::new();
-        plist::to_writer_xml(&mut buffer, &packet)?;
-        let buffer = String::from_utf8(buffer).unwrap();
+        plist::to_writer_xml(&mut buffer, &challenge_packet)?;
 
-        let res = self
-            .client
+        let res = self.client
             .post(GSA_ENDPOINT)
-            .headers(gsa_headers.clone())
+            .headers(gsa_headers)
             .body(buffer)
             .send()
             .await;
 
         let res = parse_response(res).await?;
-        let err_check = check_error(&res);
-        if err_check.is_err() {
-            return Err(err_check.err().unwrap());
-        }
-
-        log::debug!("Received GSA response from request: {:?}", res);
+        check_error(&res)?;
         
         let m2 = res.get("M2").unwrap().as_data().unwrap();
-        verifier.verify_server(&m2).unwrap();
+        verifier.verify_server(m2).unwrap();
 
-        let spd = res.get("spd").unwrap().as_data().unwrap();
-        let decrypted_spd = super::decrypt_cbc(&verifier, spd);
-        let decoded_spd: Dictionary = plist::from_bytes(&decrypted_spd).unwrap();
+        let spd_encrypted = res.get("spd").unwrap().as_data().unwrap();
+        let spd_decrypted = super::decrypt_cbc(&verifier, spd_encrypted);
+        let mut spd: Dictionary = plist::from_bytes(&spd_decrypted).unwrap();
+
+        if !spd.contains_key("appleId") {
+            spd.insert("appleId".to_string(), plist::Value::String(username_for_spd));
+        }
+
+        self.spd = Some(spd);
 
         let status = res.get("Status").unwrap().as_dictionary().unwrap();
-
-        self.spd = Some(decoded_spd);
-
-        if let Some(Value::String(s)) = status.get("au") {
-            return match s.as_str() {
+        if let Some(Value::String(auth_type)) = status.get("au") {
+            return match auth_type.as_str() {
                 "trustedDeviceSecondaryAuth" => Ok(LoginState::NeedsDevice2FA),
                 "secondaryAuth" => Ok(LoginState::NeedsSMS2FA),
-                _unk => Ok(LoginState::NeedsExtraStep(_unk.to_string())),
+                other => Ok(LoginState::NeedsExtraStep(other.to_string())),
             };
         }
 

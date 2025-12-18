@@ -35,8 +35,8 @@ pub struct ViewDeveloperResponse {
 #[serde(rename_all = "camelCase")]
 
 pub struct Developer {
-    pub developer_id: String,
-    pub person_id: String,
+    // pub developer_id: String,
+    // pub person_id: String,
     pub first_name: String,
     pub last_name: String,
     pub ds_first_name: String,

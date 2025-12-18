@@ -14,7 +14,7 @@ futures.workspace = true
 env_logger.workspace = true
 log.workspace = true
 plume_core = { path = "../../crates/core", features = ["vendored-botan"] }
-plume_utils = { path = "../../crates/utils" }
+plume_utils = { path = "../../crates/types" }
 plume_shared = { path = "../../crates/shared" }
 
 rustls = { version = "0.23.32", features = ["ring"] }
