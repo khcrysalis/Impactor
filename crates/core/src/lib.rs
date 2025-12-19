@@ -30,8 +30,13 @@ pub enum Error {
     CertificatePemMissing,
     #[error("Certificate error: {0}")]
     Certificate(String),
-    #[error("Developer session error {0}: {1}")]
-    DeveloperSession(i64, String),
+    #[error("Developer API error {result_code} (HTTP {http_code:?}): {message} [URL: {url}]")]
+    DeveloperApi {
+        url: String,
+        result_code: i64,
+        http_code: Option<u16>,
+        message: String,
+    },
     #[error("Request to developer session failed")]
     DeveloperSessionRequestFailed,
     #[error("Authentication SRP error {0}: {1}")]
@@ -74,6 +79,8 @@ pub fn client() -> Result<reqwest::Client, Error> {
     const APPLE_ROOT: &[u8] = include_bytes!("./apple_root.der");
     let client = reqwest::ClientBuilder::new()
         .add_root_certificate(reqwest::Certificate::from_der(APPLE_ROOT)?)
+        // uncomment when debugging w/ charles proxy
+        // .danger_accept_invalid_certs(true)
         .http1_title_case_headers()
         .connection_verbose(true)
         .build()?;

@@ -5,14 +5,14 @@ use uuid::Uuid;
 use crate::Error;
 
 use crate::developer_endpoint;
-use super::{DeveloperSession, ResponseMeta};
+use super::{DeveloperSession, QHResponseMeta};
 
 impl DeveloperSession {
     pub async fn qh_list_certs(&self, team_id: &String) -> Result<CertsResponse, Error> {
         let endpoint = developer_endpoint!("/QH65B2/ios/listAllDevelopmentCerts.action");
         
         let mut body = Dictionary::new();
-        body.insert("teamId".into(), Value::String(team_id.clone()));
+        body.insert("teamId".to_string(), Value::String(team_id.clone()));
 
         let response = self.qh_send_request(&endpoint, Some(body)).await?;
         let response_data: CertsResponse = plist::from_value(&Value::Dictionary(response))?;
@@ -20,15 +20,15 @@ impl DeveloperSession {
         Ok(response_data)
     }
 
-    pub async fn qh_revoke_cert(&self, team_id: &String, serial_number: &String) -> Result<ResponseMeta, Error> {
+    pub async fn qh_revoke_cert(&self, team_id: &String, serial_number: &String) -> Result<QHResponseMeta, Error> {
         let endpoint = developer_endpoint!("/QH65B2/ios/revokeDevelopmentCert.action");
         
         let mut body = Dictionary::new();
-        body.insert("teamId".into(), Value::String(team_id.clone()));
-        body.insert("serialNumber".into(), Value::String(serial_number.clone()));
+        body.insert("teamId".to_string(), Value::String(team_id.clone()));
+        body.insert("serialNumber".to_string(), Value::String(serial_number.clone()));
         
         let response = self.qh_send_request(&endpoint, Some(body)).await?;
-        let response_data: ResponseMeta = plist::from_value(&Value::Dictionary(response))?;
+        let response_data: QHResponseMeta = plist::from_value(&Value::Dictionary(response))?;
 
         Ok(response_data)
     }
@@ -37,10 +37,10 @@ impl DeveloperSession {
         let endpoint = developer_endpoint!("/QH65B2/ios/submitDevelopmentCSR.action");
         
         let mut body = Dictionary::new();
-        body.insert("teamId".into(), Value::String(team_id.clone()));
-        body.insert("csrContent".into(), Value::String(csr_data));
-        body.insert("machineId".into(), Value::String(Uuid::new_v4().to_string().to_uppercase()));
-        body.insert("machineName".into(), Value::String(machine_name.clone()));
+        body.insert("teamId".to_string(), Value::String(team_id.clone()));
+        body.insert("csrContent".to_string(), Value::String(csr_data));
+        body.insert("machineId".to_string(), Value::String(Uuid::new_v4().to_string().to_uppercase()));
+        body.insert("machineName".to_string(), Value::String(machine_name.clone()));
         
         let response = self.qh_send_request(&endpoint, Some(body)).await?;
         let response_data: CsrResponse = plist::from_value(&Value::Dictionary(response))?;
@@ -55,7 +55,7 @@ impl DeveloperSession {
 pub struct CertsResponse {
     pub certificates: Vec<Cert>,
     #[serde(flatten)]
-    pub meta: ResponseMeta,
+    pub meta: QHResponseMeta,
 }
 
 #[allow(dead_code)]
@@ -64,7 +64,7 @@ pub struct CertsResponse {
 pub struct CsrResponse {
     pub cert_request: Csr,
     #[serde(flatten)]
-    pub meta: ResponseMeta,
+    pub meta: QHResponseMeta,
 }
 
 #[allow(dead_code)]

@@ -251,7 +251,7 @@ impl CertificateIdentity {
                     Ok(id) => break id,
                     Err(e) => {
                         // 7460 is for too many certificates (I think)
-                        if matches!(&e, Error::DeveloperSession(code, _) if *code == 7460) {
+                        if matches!(&e, Error::DeveloperApi { result_code, .. } if *result_code == 7460) {
                             // Try to revoke certificates from the candidate list
                             let mut revoked_any = false;
                             for cid in &cert_serial_numbers {

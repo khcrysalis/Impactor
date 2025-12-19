@@ -9,7 +9,7 @@ use plume_core::{
     AnisetteConfiguration, 
     auth::Account,
     developer::DeveloperSession,
-    store::{AccountStatus, GsaAnisetteProvider, AccountStore}
+    store::{AccountStatus, AccountStore}
 };
 use plume_shared::get_data_path;
 
@@ -37,6 +37,8 @@ pub enum AccountCommands {
     Devices(DevicesArgs),
     /// Register a new device
     RegisterDevice(RegisterDeviceArgs),
+    /// List all app IDs for a team
+    AppIds(AppIdsArgs),
 }
 
 #[derive(Debug, Args)]
@@ -84,6 +86,13 @@ pub struct RegisterDeviceArgs {
 }
 
 #[derive(Debug, Args)]
+pub struct AppIdsArgs {
+    /// Team ID to list app IDs for
+    #[arg(short = 't', long = "team", value_name = "TEAM_ID")]
+    pub team_id: Option<String>,
+}
+
+#[derive(Debug, Args)]
 pub struct SwitchArgs {
     /// Email of the account to switch to
     #[arg(value_name = "EMAIL", required = true)]
@@ -99,6 +108,7 @@ pub async fn execute(args: AccountArgs) -> Result<()> {
         AccountCommands::Certificates(cert_args) => certificates(cert_args).await,
         AccountCommands::Devices(device_args) => devices(device_args).await,
         AccountCommands::RegisterDevice(register_args) => register_device(register_args).await,
+        AccountCommands::AppIds(app_id_args) => app_ids(app_id_args).await,
     }
 }
 
@@ -108,37 +118,28 @@ fn get_settings_path() -> PathBuf {
 
 pub async fn get_authenticated_account() -> Result<DeveloperSession> {
     let settings_path = get_settings_path();
-    let mut settings = AccountStore::load(&Some(settings_path.clone())).await?;
-    
+    let settings = AccountStore::load(&Some(settings_path.clone())).await?;
+
     let gsa_account = settings.selected_account()
         .ok_or_else(|| anyhow::anyhow!("No account selected. Please login first using 'plumesign account login'"))?
         .clone();
-    
-    // Check account status
-    if gsa_account.status == plume_core::store::AccountStatus::Invalid {
+
+    if *gsa_account.status() == AccountStatus::NeedsReauth {
         return Err(anyhow::anyhow!("Account is invalid. Please login again using 'plumesign account login'"));
     }
     
-    let anisette_config = match gsa_account.anisette_provider {
-        _ => {
-            AnisetteConfiguration::default()
-                .set_configuration_path(get_data_path())
-        }
-    };
-    
-    log::info!("Restoring session for {}...", gsa_account.email);
-    
-    // Try to restore account from stored data
-    let account = match Account::from_gsa_account(&gsa_account, anisette_config.clone()).await {
-        std::result::Result::Ok(acc) => acc,
-        Err(e) => {
-            log::warn!("Failed to restore account: {}. Marking as needs reauth.", e);
-            settings.update_account_status(&gsa_account.email, plume_core::store::AccountStatus::NeedsReauth).await?;
-            return Err(anyhow::anyhow!("Session expired. Please login again using 'plumesign account login'"));
-        }
-    };
-    
-    Ok(DeveloperSession::with(account))
+    let anisette_config = AnisetteConfiguration::default()
+        .set_configuration_path(get_data_path());
+
+    log::info!("Restoring session for {}...", gsa_account.email());
+
+    let session = DeveloperSession::new(
+        gsa_account.adsid().clone(), 
+        gsa_account.xcode_gs_token().clone(), 
+        anisette_config,
+    ).await?;
+
+    Ok(session)
 }
 
 async fn login(args: LoginArgs) -> Result<()> {
@@ -178,30 +179,10 @@ async fn login(args: LoginArgs) -> Result<()> {
 
     println!("Logging in...");
     let account = Account::login(login_closure, tfa_closure, anisette_config).await?;
-
-    let gsa_account = account.to_gsa_account(GsaAnisetteProvider::Remote)?;
-    
-    let session = DeveloperSession::with(account.clone());
-    let teams = session.qh_list_teams().await?;
-    
-    if teams.teams.is_empty() {
-        return Err(anyhow::anyhow!("No teams found for this account. Make sure you have an active Apple Developer account."));
-    }
-    
-    let team_id = &teams.teams[0].team_id;
-    
-    match account.validate_and_get_info(team_id).await {
-        std::result::Result::Ok((first_name, last_name)) => {
-            log::info!("Account validated: {} {}", first_name, last_name);
-        }
-        Err(e) => {
-            log::warn!("Could not validate account info: {}", e);
-        }
-    }
     
     let settings_path = get_settings_path();
     let mut settings = AccountStore::load(&Some(settings_path.clone())).await?;
-    settings.accounts_add(gsa_account).await?;
+    settings.accounts_add_from_session(username, account).await?;
 
     log::info!("Successfully logged in and account saved.");
 
@@ -214,7 +195,7 @@ async fn logout() -> Result<()> {
     
     let email = settings.selected_account()
         .ok_or_else(|| anyhow::anyhow!("No account currently logged in"))?
-        .email
+        .email()
         .clone();
     
     settings.accounts_remove(&email).await?;
@@ -297,6 +278,24 @@ pub async fn teams(session: &DeveloperSession) -> Result<String> {
     Ok(teams[selection].team_id.clone())
 }
 
+pub async fn app_ids(args: AppIdsArgs) -> Result<()> {
+    let session = get_authenticated_account().await?;
+
+    let team_id = if args.team_id.is_none() {
+        teams(&session).await?
+    } else {
+        args.team_id.unwrap()
+    };
+
+    let p = session.v1_list_app_ids(&team_id)
+        .await?
+        .data;
+
+    log::info!("{:#?}", p);
+
+    Ok(())
+}
+
 async fn list_accounts() -> Result<()> {
     let settings_path = get_settings_path();
     let settings = AccountStore::load(&Some(settings_path)).await?;
@@ -308,22 +307,20 @@ async fn list_accounts() -> Result<()> {
         return Ok(());
     }
     
-    let selected_email = settings.selected_account().map(|a| &a.email);
+    let selected_email = settings.selected_account().map(|a| a.email().clone());
     
     log::info!("Saved accounts:");
     for (email, account) in accounts {
-        let status_str = match account.status {
+        let status_str = match account.status() {
             AccountStatus::Valid => "Valid",
-            AccountStatus::Invalid => "Invalid",
             AccountStatus::NeedsReauth => "Needs Re-auth",
         };
         
-        let selected = if Some(email) == selected_email { "(selected)" } else { "" };
-        
-        log::info!(" [{}] {} {} - {} {}", 
+        let selected = if Some(email) == selected_email.as_ref() { "(selected)" } else { "" };
+
+        log::info!(" [{}] {} - {} {}", 
             status_str,
-            account.first_name,
-            account.last_name,
+            account.first_name(),
             email,
             selected
         );

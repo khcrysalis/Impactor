@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use omnisette::AnisetteConfiguration;
 use reqwest::header::HeaderName;
 use tokio::sync::Mutex;
 
@@ -12,7 +13,8 @@ use crate::Error;
 
 use crate::auth::Account;
 use crate::auth::anisette_data::AnisetteData;
-use crate::developer::qh::ResponseMeta;
+use crate::developer::qh::QHResponseMeta;
+use crate::developer::v1::V1ErrorResponse;
 
 pub struct DeveloperSession {
     anisette: Arc<Mutex<AnisetteData>>,
@@ -39,6 +41,19 @@ impl DeveloperSession {
 
     pub async fn new(
         adsid: String, 
+        xcode_gs_token: String,
+        config: AnisetteConfiguration,
+    ) -> Result<Self, Error> {
+        let anisette = AnisetteData::new(config).await?;
+        Self::new_with_anisette(
+            adsid,
+            xcode_gs_token,
+            Arc::new(Mutex::new(anisette)),
+        ).await
+    }
+
+    pub async fn new_with_anisette(
+        adsid: String,
         xcode_gs_token: String,
         anisette: Arc<Mutex<AnisetteData>>,
     ) -> Result<Self, Error> {
@@ -79,23 +94,22 @@ impl DeveloperSession {
         self.insert_identity_headers(&mut headers).await;
         self.insert_anisette_headers(&mut headers).await;
 
+        let mut body = body.unwrap_or_default();
+        body.insert("requestId".into(), Value::String(Uuid::new_v4().to_string().to_uppercase()));
+
         let request_builder = self.client.post(url).headers(headers);
 
-        let request_builder = if let Some(mut body) = body {
-            body.insert("requestId".into(), Value::String(Uuid::new_v4().to_string().to_uppercase()));
-            let mut buffer = Vec::new();
-            plist::to_writer_xml(&mut buffer, &body)?;
-            request_builder.body(buffer)
-        } else {
-            request_builder
-        };
+        let mut buffer = Vec::new();
+        plist::to_writer_xml(&mut buffer, &body)?;
 
-        let response = request_builder.send().await?;
+        let response = request_builder.body(buffer).send().await?;
         let response_bytes = response.bytes().await?;
         let response_dict: Dictionary = plist::from_bytes(&response_bytes)?;
-        let response_meta: ResponseMeta = plist::from_value(&Value::Dictionary(response_dict.clone()))?;
+        let response_meta: QHResponseMeta = plist::from_value(&Value::Dictionary(response_dict.clone()))?;
 
-        log::debug!("Response Meta: {:?}", response_meta);
+        if response_meta.result_code.as_signed().unwrap_or(0) != 0 {
+            return Err(response_meta.to_error(url.to_string()));
+        }
 
         Ok(response_dict)
     }
@@ -116,23 +130,23 @@ impl DeveloperSession {
         }
         self.insert_anisette_headers(&mut headers).await;
 
-        let request_builder = match request_type {
-            Some(RequestType::Post) => self.client.post(url),
-            Some(RequestType::Patch) => self.client.patch(url),
-            _ => self.client.get(url),
-        }.headers(headers);
-
-        let request_builder = if let Some(body) = body {
-            request_builder.json(&body)
-        } else {
-            request_builder
+        let mut request_builder  = match request_type {
+            Some(RequestType::Patch) => self.client.patch(url).headers(headers.clone()),
+            Some(RequestType::Post) | _ if body.is_some() => self.client.post(url).headers(headers.clone()),
+            _ => self.client.get(url).headers(headers.clone()),
         };
+
+        if let Some(body) = body {
+            request_builder = request_builder.json(&body);
+        }
 
         let response = request_builder.send().await?;
         let response_text = response.text().await?;
         let response_json: serde_json::Value = serde_json::from_str(&response_text)?;
 
-        log::debug!("Response JSON: {:?}", response_json);
+        if let Ok(errors) = serde_json::from_value::<V1ErrorResponse>(response_json.clone()) {
+            return Err(errors.errors[0].to_error(url.to_string()));
+        }
 
         Ok(response_json)
     }

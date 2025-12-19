@@ -407,7 +407,7 @@ impl PlumeFrame {
                         sender_clone.send(PlumeFrameMessage::WorkStarted).ok();
                         
                         let selected_account = if let Some(gsa_account) = gsa_account_data {
-                            if gsa_account.status != AccountStatus::Valid {
+                            if *gsa_account.status() != AccountStatus::Valid {
                                 return Err("Account is invalid or needs re-authentication. Please re-login in Settings.".to_string());
                             }
                             

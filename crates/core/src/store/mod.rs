@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::Error;
+use crate::{Error, auth::Account, developer::DeveloperSession};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AccountStore {
@@ -15,23 +15,33 @@ pub struct AccountStore {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GsaAccount {
     email: String,
-    first_name: Option<String>,
+    first_name: String,
     adsid: String,
     xcode_gs_token: String,
+    status: AccountStatus,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub enum AccountStatus {
+    Valid,
+    NeedsReauth,
 }
 
 impl GsaAccount {
     pub fn email(&self) -> &String {
         &self.email
     }
-    pub fn first_name(&self) -> Option<&String> {
-        self.first_name.as_ref()
+    pub fn first_name(&self) -> &String {
+        &self.first_name
     }
     pub fn adsid(&self) -> &String {
         &self.adsid
     }
     pub fn xcode_gs_token(&self) -> &String {
         &self.xcode_gs_token
+    }
+    pub fn status(&self) -> &AccountStatus {
+        &self.status
     }
 }
 
@@ -73,7 +83,7 @@ impl AccountStore {
         self.accounts.get(email)
     }
 
-    pub async fn accounts_add(&mut self, account: GsaAccount) -> Result<(), Error>{
+    pub async fn accounts_add(&mut self, account: GsaAccount) -> Result<(), Error> {
         let email = account.email.clone();
         self.accounts.insert(email.clone(), account);
         self.selected_account = Some(email);
@@ -103,5 +113,25 @@ impl AccountStore {
         } else {
             None
         }
+    }
+
+    pub async fn accounts_add_from_session(&mut self, email: String, account: Account) -> Result<(), Error> {
+        let first_name = account.get_name().0;
+        let s = DeveloperSession::using_account(account).await?;
+        s.qh_list_teams().await?;
+        let adsid = s.adsid().clone();
+        let xcode_gs_token = s.xcode_gs_token().clone();
+
+        let account = GsaAccount {
+            email,
+            first_name,
+            adsid,
+            xcode_gs_token,
+            status: AccountStatus::Valid,
+        };
+
+        self.accounts_add(account).await?;
+
+        Ok(())
     }
 }

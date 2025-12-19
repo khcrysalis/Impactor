@@ -5,14 +5,14 @@ use crate::Error;
 
 use crate::developer::strip_invalid_chars;
 use crate::developer_endpoint;
-use super::{DeveloperSession, ResponseMeta};
+use super::{DeveloperSession, QHResponseMeta};
 
 impl DeveloperSession {
     pub async fn qh_list_app_ids(&self, team_id: &String) -> Result<AppIDsResponse, Error> {
         let endpoint = developer_endpoint!("/QH65B2/ios/listAppIds.action");
 
         let mut body = Dictionary::new();
-        body.insert("teamId".into(), Value::String(team_id.clone()));
+        body.insert("teamId".to_string(), Value::String(team_id.clone()));
 
         let response = self.qh_send_request(&endpoint, Some(body)).await?;
         let response_data: AppIDsResponse = plist::from_value(&Value::Dictionary(response))?;
@@ -24,9 +24,9 @@ impl DeveloperSession {
         let endpoint = developer_endpoint!("/QH65B2/ios/addAppId.action");
         
         let mut body = Dictionary::new();
-        body.insert("teamId".into(), Value::String(team_id.clone()));
-        body.insert("name".into(), Value::String(strip_invalid_chars(name)));
-        body.insert("identifier".into(), Value::String(identifier.clone()));
+        body.insert("teamId".to_string(), Value::String(team_id.clone()));
+        body.insert("name".to_string(), Value::String(strip_invalid_chars(name)));
+        body.insert("identifier".to_string(), Value::String(identifier.clone()));
 
         let response = self.qh_send_request(&endpoint, Some(body)).await?;
         let response_data: AppIDResponse = plist::from_value(&Value::Dictionary(response))?;
@@ -34,15 +34,15 @@ impl DeveloperSession {
         Ok(response_data)
     }
 
-    pub async fn qh_delete_app_id(&self, team_id: &String, app_id_id: &String) -> Result<ResponseMeta, Error> {
+    pub async fn qh_delete_app_id(&self, team_id: &String, app_id_id: &String) -> Result<QHResponseMeta, Error> {
         let endpoint = developer_endpoint!("/QH65B2/ios/deleteAppId.action");
         
         let mut body = Dictionary::new();
-        body.insert("teamId".into(), Value::String(team_id.clone()));
-        body.insert("appIdId".into(), Value::String(app_id_id.clone()));
+        body.insert("teamId".to_string(), Value::String(team_id.clone()));
+        body.insert("appIdId".to_string(), Value::String(app_id_id.clone()));
         
         let response = self.qh_send_request(&endpoint, Some(body)).await?;
-        let response_data: ResponseMeta = plist::from_value(&Value::Dictionary(response))?;
+        let response_data: QHResponseMeta = plist::from_value(&Value::Dictionary(response))?;
 
         Ok(response_data)
     }
@@ -51,8 +51,8 @@ impl DeveloperSession {
         let endpoint = developer_endpoint!("/QH65B2/ios/updateAppId.action");
         
         let mut body = Dictionary::new();
-        body.insert("teamId".into(), Value::String(team_id.clone()));
-        body.insert("appIdId".into(), Value::String(app_id_id.clone()));
+        body.insert("teamId".to_string(), Value::String(team_id.clone()));
+        body.insert("appIdId".to_string(), Value::String(app_id_id.clone()));
         
         for (key, value) in features {
             body.insert(key, value);
@@ -89,7 +89,7 @@ impl DeveloperSession {
 pub struct AppIDsResponse {
     pub app_ids: Vec<AppID>,
     #[serde(flatten)]
-    pub meta: ResponseMeta,
+    pub meta: QHResponseMeta,
 }
 
 #[allow(dead_code)]
@@ -98,7 +98,7 @@ pub struct AppIDsResponse {
 pub struct AppIDResponse {
     pub app_id: AppID,
     #[serde(flatten)]
-    pub meta: ResponseMeta,
+    pub meta: QHResponseMeta,
 }
 
 #[allow(dead_code)]

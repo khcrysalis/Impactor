@@ -4,7 +4,7 @@ use plist::{Date, Integer, Value};
 use crate::Error;
 
 use crate::developer_endpoint;
-use super::{DeveloperSession, ResponseMeta};
+use super::{DeveloperSession, QHResponseMeta};
 
 impl DeveloperSession {
     pub async fn qh_list_teams(&self) -> Result<TeamsResponse, Error> {
@@ -23,7 +23,7 @@ impl DeveloperSession {
 pub struct TeamsResponse {
     pub teams: Vec<Team>,
     #[serde(flatten)]
-    pub meta: ResponseMeta,
+    pub meta: QHResponseMeta,
 }
 
 #[allow(dead_code)]

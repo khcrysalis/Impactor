@@ -4,14 +4,14 @@ use plist::{Dictionary, Date, Value};
 use crate::Error;
 
 use crate::developer_endpoint;
-use super::{DeveloperSession, ResponseMeta};
+use super::{DeveloperSession, QHResponseMeta};
 
 impl DeveloperSession {
     pub async fn qh_list_devices(&self, team_id: &String) -> Result<DevicesResponse, Error> {
         let endpoint = developer_endpoint!("/QH65B2/ios/listDevices.action");
         
         let mut body = Dictionary::new();
-        body.insert("teamId".into(), Value::String(team_id.clone()));
+        body.insert("teamId".to_string(), Value::String(team_id.clone()));
 
         let response = self.qh_send_request(&endpoint, Some(body)).await?;
         let response_data: DevicesResponse = plist::from_value(&Value::Dictionary(response))?;
@@ -23,9 +23,9 @@ impl DeveloperSession {
         let endpoint = developer_endpoint!("/QH65B2/ios/addDevice.action");
         
         let mut body = Dictionary::new();
-        body.insert("teamId".into(), Value::String(team_id.clone()));
-        body.insert("name".into(), Value::String(device_name.clone()));
-        body.insert("deviceNumber".into(), Value::String(device_udid.clone()));
+        body.insert("teamId".to_string(), Value::String(team_id.clone()));
+        body.insert("name".to_string(), Value::String(device_name.clone()));
+        body.insert("deviceNumber".to_string(), Value::String(device_udid.clone()));
 
         let response = self.qh_send_request(&endpoint, Some(body)).await?;
         let response_data: DeviceResponse = plist::from_value(&Value::Dictionary(response))?;
@@ -58,7 +58,7 @@ impl DeveloperSession {
 pub struct DevicesResponse {
     pub devices: Vec<Device>,
     #[serde(flatten)]
-    pub meta: ResponseMeta,
+    pub meta: QHResponseMeta,
 }
 
 #[allow(dead_code)]
@@ -67,7 +67,7 @@ pub struct DevicesResponse {
 pub struct DeviceResponse {
     pub device: Device,
     #[serde(flatten)]
-    pub meta: ResponseMeta,
+    pub meta: QHResponseMeta,
 }
 
 #[allow(dead_code)]
