@@ -20,7 +20,6 @@ plume_utils = { path = "../../crates/types" }
 plume_shared = { path = "../../crates/shared" }
 
 wxdragon = { git = "https://github.com/PlumeImpactor/wxDragon", rev = "7d407ce", package = "wxdragon" }
-image = { version = "0.25.1", default-features = false, features = ["png"] }
 rustls = { version = "0.23.32", features = ["ring"] }
 
 [target.'cfg(target_os = "windows")'.build-dependencies]

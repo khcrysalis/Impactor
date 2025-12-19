@@ -435,7 +435,7 @@ impl PlumeFrame {
                             None
                         };
                         
-                        sender_clone.send(PlumeFrameMessage::WorkUpdated("Preparing package for installation...".into())).ok();
+                        sender_clone.send(PlumeFrameMessage::WorkUpdated("Preparing package for installation...".into(), 10)).ok();
 
                         let package_file;
 
@@ -478,7 +478,7 @@ impl PlumeFrame {
                                     &teams[selected_index as usize].team_id
                                 };
 
-                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Obtaining certificate identity...".into())).ok();
+                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Obtaining certificate identity...".into(), 20)).ok();
 
                                 let cert_identity = CertificateIdentity::new_with_session(
                                     &session,
@@ -488,7 +488,7 @@ impl PlumeFrame {
                                 ).await.map_err(|e| e.to_string())?;
 
                                 if let Some(device) = device.as_ref() {
-                                    sender_clone.send(PlumeFrameMessage::WorkUpdated("Ensuring current device is registered...".to_string())).ok();
+                                    sender_clone.send(PlumeFrameMessage::WorkUpdated("Ensuring current device is registered...".to_string(), 30)).ok();
                                     session.qh_ensure_device(
                                         team_id,
                                         &device.name,
@@ -501,17 +501,17 @@ impl PlumeFrame {
                                 let bundle = package.get_package_bundle()
                                     .map_err(|e| format!("Failed to get package bundle: {}", e))?;
 
-                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Modifying bundle...".into())).ok();
+                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Modifying bundle...".into(), 40)).ok();
 
                                 signer.modify_bundle(&bundle, &Some(team_id.clone())).await
                                     .map_err(|e| format!("Failed to modify bundle: {}", e))?;
 
-                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Registering bundle...".into())).ok();
+                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Registering bundle...".into(), 50)).ok();
 
                                 signer.register_bundle(&bundle, &session, &team_id).await
                                     .map_err(|e| format!("Failed to register bundle: {}", e))?;
 
-                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Signing bundle...".into())).ok();
+                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Signing bundle...".into(), 60)).ok();
 
                                 signer.sign_bundle(&bundle).await
                                     .map_err(|e| format!("Failed to sign bundle: {}", e))?;
@@ -524,12 +524,12 @@ impl PlumeFrame {
                                 let bundle = package.get_package_bundle()
                                     .map_err(|e| format!("Failed to get package bundle: {}", e))?;
 
-                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Modifying bundle...".into())).ok();
+                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Modifying bundle...".into(), 40)).ok();
 
                                 signer.modify_bundle(&bundle, &None).await
                                     .map_err(|e| format!("Failed to modify bundle: {}", e))?;
 
-                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Signing bundle...".into())).ok();
+                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Signing bundle...".into(), 60)).ok();
 
                                 signer.sign_bundle(&bundle).await
                                     .map_err(|e| format!("Failed to sign bundle: {}", e))?;
@@ -544,7 +544,7 @@ impl PlumeFrame {
                             }
                         };
 
-                        sender_clone.send(PlumeFrameMessage::WorkUpdated("Preparing...".into())).ok();
+                        sender_clone.send(PlumeFrameMessage::WorkUpdated("Preparing...".into(), 70)).ok();
 
                         match signer_settings.install_mode {
                             SignerInstallMode::InstallMac => {
@@ -564,7 +564,8 @@ impl PlumeFrame {
                                     move |progress: i32| {
                                     let sender = sender.clone();
                                         async move {
-                                            sender.send(PlumeFrameMessage::WorkUpdated(format!("Installing... {}%", progress))).ok();
+                                            let percent = 70 + ((progress as f32 / 100.0) * 30.0).round() as i32;
+                                            sender.send(PlumeFrameMessage::WorkUpdated(format!("Installing... {}%", progress), percent)).ok();
                                         }
                                     }
                                 };

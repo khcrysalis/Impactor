@@ -27,7 +27,7 @@ pub enum PlumeFrameMessage {
     AwaitingTwoFactorCode(std_mpsc::Sender<Result<String, String>>),
     RequestTeamSelection(Vec<String>, std_mpsc::Sender<Result<i32, String>>),
     WorkStarted,
-    WorkUpdated(String),
+    WorkUpdated(String, i32),
     WorkEnded,
     ArchivePathReady(PathBuf),
     Error(String),
@@ -144,7 +144,7 @@ impl PlumeFrameMessageHandler {
                 self.package_selected = None;
                 self.plume_frame.install_page.panel.hide();
                 self.plume_frame.work_page.panel.hide();
-                self.plume_frame.work_page.set_status_text("Idle");
+                self.plume_frame.work_page.set_status("Idle", 0);
                 self.plume_frame.default_page.panel.show(true);
                 self.plume_frame.frame.layout();
                 self.signer_settings = SignerOptions::default();
@@ -252,11 +252,11 @@ impl PlumeFrameMessageHandler {
                 self.plume_frame.work_page.panel.show(true);
                 self.plume_frame.frame.layout();
             }
-            PlumeFrameMessage::WorkUpdated(status_text) => {
-                self.plume_frame.work_page.set_status_text(&status_text);
+            PlumeFrameMessage::WorkUpdated(status_text, progress) => {
+                self.plume_frame.work_page.set_status(&status_text, progress);
             }
             PlumeFrameMessage::WorkEnded => {
-                self.plume_frame.work_page.set_status_text("Done.");
+                self.plume_frame.work_page.set_status("Done.", 100);
                 self.plume_frame.work_page.enable_back_button(true);
             }
             PlumeFrameMessage::ArchivePathReady(archive_path) => {

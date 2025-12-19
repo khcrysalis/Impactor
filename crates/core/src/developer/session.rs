@@ -141,11 +141,11 @@ impl DeveloperSession {
             _ => self.client.get(url).headers(headers.clone()),
         };
 
+        log::debug!("V1 Request to {}: {:?}", url, &body);
+
         if let Some(body) = body {
             request_builder = request_builder.json(&body);
         }
-
-        log::debug!("V1 Request to {}: {:?}", url, body);
 
         let response = request_builder.send().await?;
         let response_text = response.text().await?;
