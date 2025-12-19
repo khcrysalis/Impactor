@@ -3,7 +3,7 @@ use plist::{Date, Integer, Value};
 
 use crate::Error;
 
-use crate::{SessionRequestTrait, developer_endpoint};
+use crate::developer_endpoint;
 use super::{DeveloperSession, ResponseMeta};
 
 impl DeveloperSession {

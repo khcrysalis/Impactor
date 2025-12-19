@@ -1,15 +1,13 @@
 use serde::{Deserialize};
 use serde_json::{Value, json};
 
-use super::DeveloperSession;
-use crate::SessionRequestTrait;
-use crate::auth::account::request::RequestType;
+use super::{DeveloperSession, RequestType};
 use crate::developer_endpoint;
 
 use crate::Error;
 
 impl DeveloperSession {
-    pub async fn v1_list_app_ids(&self, team: &str) -> Result<AppIDsResponse, Error> {
+    pub async fn v1_list_app_ids(&self, team: &String) -> Result<AppIDsResponse, Error> {
         let endpoint = developer_endpoint!("/v1/bundleIds");
 
         let body = json!({ 
@@ -23,16 +21,16 @@ impl DeveloperSession {
         Ok(response_data)
     }
     
-    pub async fn v1_get_app_id(&self, team: &str, app_id: &str) -> Result<Option<AppID>, Error> {
+    pub async fn v1_get_app_id(&self, team: &String, app_id: &String) -> Result<Option<AppID>, Error> {
         let response_data = self.v1_list_app_ids(team).await?;
 
         let app_id = response_data.data.into_iter()
-            .find(|app| app.attributes.identifier == app_id);
+            .find(|app| app.attributes.identifier == *app_id);
 
         Ok(app_id)
     }
 
-    pub async fn v1_update_app_id(&self, team: &str, app_id: &str, capabilities: Vec<String>) -> Result<AppIDResponse, Error> {
+    pub async fn v1_update_app_id(&self, team: &String, app_id: &String, capabilities: Vec<String>) -> Result<AppIDResponse, Error> {
         let response_data = self.v1_get_app_id(team, app_id).await?;
         let app_id = response_data.ok_or(Error::DeveloperSessionRequestFailed)?;
 

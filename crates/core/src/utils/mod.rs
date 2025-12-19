@@ -8,18 +8,6 @@ pub use macho::{MachO, MachOExt};
 pub use provision::MobileProvision;
 pub use certificate::CertificateIdentity;
 
-const INVALID_CHARS: &[char] = &['\\', '/', ':', '*', '?', '"', '<', '>', '|', '.'];
-// Apple apis restrict certain characters in app names
-pub fn strip_invalid_name_chars(name: &str) -> String {
-    name.chars()
-        .filter(|c| 
-            c.is_ascii() 
-            && !c.is_control() 
-            && !INVALID_CHARS.contains(c)
-        )
-        .collect()
-}
-
 pub const TEAM_ID_REGEX: &str = r"^[A-Z0-9]{10}\.";
 
 pub fn merge_entitlements(

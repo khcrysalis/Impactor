@@ -3,21 +3,20 @@ pub mod anisette_data;
 
 use serde::{Deserialize, Serialize};
 use omnisette::AnisetteConfiguration;
-use reqwest::{Certificate, Client, ClientBuilder};
+use reqwest::Client;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 
-use crate::Error;
+use crate::{Error, client};
 use crate::auth::anisette_data::AnisetteData;
 
 const GSA_ENDPOINT: &str = "https://gsa.apple.com/grandslam/GsService2";
-const APPLE_ROOT: &[u8] = include_bytes!("./apple_root.der");
 
 #[derive(Debug, Clone)]
 pub struct Account {
     pub anisette: Arc<Mutex<AnisetteData>>,
     pub spd: Option<plist::Dictionary>,
-    client: Client,
+    pub client: Client,
 }
 
 impl Account {
@@ -27,12 +26,7 @@ impl Account {
     }
     
     pub fn new_with_anisette(anisette: AnisetteData) -> Result<Self, Error> {
-        let client = ClientBuilder::new()
-            .add_root_certificate(Certificate::from_der(APPLE_ROOT)?)
-            .http1_title_case_headers()
-            .connection_verbose(true)
-            .build()?;
-        
+        let client = client()?;
         Ok(Account {
             anisette: Arc::new(Mutex::new(anisette)),
             spd: None,

@@ -3,42 +3,37 @@ pub mod developer;
 pub mod store;
 mod utils;
 
-use plist::Dictionary;
-use serde_json::Value;
+pub use apple_codesign::{
+    SigningSettings,
+    SettingsScope,
+    UnifiedSigner,
+    AppleCodesignError
+};
 
-use crate::auth::account::request::RequestType;
-
-pub use apple_codesign::{SigningSettings, SettingsScope, UnifiedSigner, AppleCodesignError};
 pub use omnisette::AnisetteConfiguration;
 
-pub use utils::{MachO, MachOExt};
-pub use utils::MobileProvision;
-pub use utils::CertificateIdentity;
-
-trait SessionRequestTrait {
-    async fn qh_send_request(&self, endpoint: &str, payload: Option<Dictionary>) -> Result<Dictionary, Error>;
-    async fn v1_send_request(&self, url: &str, body: Option<Value>, request_type: Option<RequestType>) -> Result<Value, Error>;
-}
+pub use utils::{
+    MachO,
+    MachOExt,
+    MobileProvision,
+    CertificateIdentity
+};
 
 use thiserror::Error as ThisError;
 #[derive(Debug, ThisError)]
 pub enum Error {
     #[error("Executable not found")]
     BundleExecutableMissing,
-
     #[error("Entitlements not found")]
     ProvisioningEntitlementsUnknown,
-    
     #[error("Missing certificate PEM data")]
     CertificatePemMissing,
     #[error("Certificate error: {0}")]
     Certificate(String),
-    
     #[error("Developer session error {0}: {1}")]
     DeveloperSession(i64, String),
     #[error("Request to developer session failed")]
     DeveloperSessionRequestFailed,
-    
     #[error("Authentication SRP error {0}: {1}")]
     AuthSrpWithMessage(i64, String),
     #[error("Authentication extra step required: {0}")]
@@ -46,8 +41,7 @@ pub enum Error {
     #[error("Bad 2FA code")]
     Bad2faCode,
     #[error("Failed to parse")]
-    Parse,
-
+    Parse, // TODO: better parsing errors
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Plist error: {0}")]
@@ -74,4 +68,15 @@ pub enum Error {
     PKCS8(#[from] rsa::pkcs8::Error),
     #[error("RCGen error: {0}")]
     RcGen(#[from] rcgen::RcgenError),
+}
+
+pub fn client() -> Result<reqwest::Client, Error> {
+    const APPLE_ROOT: &[u8] = include_bytes!("./apple_root.der");
+    let client = reqwest::ClientBuilder::new()
+        .add_root_certificate(reqwest::Certificate::from_der(APPLE_ROOT)?)
+        .http1_title_case_headers()
+        .connection_verbose(true)
+        .build()?;
+    
+    Ok(client)
 }

@@ -615,11 +615,12 @@ impl PlumeFrame {
                     });
 
                     if let Err(e) = install_result {
-                    sender_clone.send(PlumeFrameMessage::WorkEnded).ok();
-                    sender_clone.send(PlumeFrameMessage::Error(format!("{}", e))).ok();
-                    return;
+                        sender_clone.send(PlumeFrameMessage::WorkEnded).ok();
+                        sender_clone.send(PlumeFrameMessage::Error(format!("{}", e))).ok();
+                        return;
+                    }
                 }
-            });
+            );
             }
         });
 
