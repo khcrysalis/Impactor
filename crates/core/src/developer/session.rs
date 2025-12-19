@@ -102,9 +102,14 @@ impl DeveloperSession {
         let mut buffer = Vec::new();
         plist::to_writer_xml(&mut buffer, &body)?;
 
+        log::debug!("QH Request to {}: {:?}", url, body);
+
         let response = request_builder.body(buffer).send().await?;
         let response_bytes = response.bytes().await?;
         let response_dict: Dictionary = plist::from_bytes(&response_bytes)?;
+
+        log::debug!("QH Response from {}: {:?}", url, response_dict);
+
         let response_meta: QHResponseMeta = plist::from_value(&Value::Dictionary(response_dict.clone()))?;
 
         if response_meta.result_code.as_signed().unwrap_or(0) != 0 {
@@ -140,8 +145,13 @@ impl DeveloperSession {
             request_builder = request_builder.json(&body);
         }
 
+        log::debug!("V1 Request to {}: {:?}", url, body);
+
         let response = request_builder.send().await?;
         let response_text = response.text().await?;
+
+        log::debug!("V1 Response from {}: {}", url, response_text);
+        
         let response_json: serde_json::Value = serde_json::from_str(&response_text)?;
 
         if let Ok(errors) = serde_json::from_value::<V1ErrorResponse>(response_json.clone()) {

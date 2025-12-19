@@ -21,7 +21,7 @@ pub struct QHResponseMeta {
     pub http_code: Option<Integer>,
     pub user_locale: String,
     pub protocol_version: String,
-    pub request_id: String,
+    pub request_id: Option<String>,
     pub result_url: Option<String>,
     pub response_id: String,
     pub page_number: Option<Integer>,
