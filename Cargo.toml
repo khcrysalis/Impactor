@@ -6,7 +6,7 @@ members = [
     "crates/core",
     "crates/gestalt",
     "crates/shared",
-    "crates/utils"
+    "crates/types"
 ]
 
 [workspace.package]

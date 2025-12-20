@@ -1,11 +1,17 @@
 use std::io::Write;
+use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 use anyhow::{Ok, Result};
 use dialoguer::Select;
 
-use plume_core::{AnisetteConfiguration, auth::Account, developer::DeveloperSession};
-use plume_shared::{AccountCredentials, get_data_path};
+use plume_core::{
+    AnisetteConfiguration, 
+    auth::Account,
+    developer::DeveloperSession,
+    store::{AccountStatus, AccountStore}
+};
+use plume_shared::get_data_path;
 
 #[derive(Debug, Args)]
 #[command(arg_required_else_help = true)]
@@ -21,12 +27,18 @@ pub enum AccountCommands {
     Login(LoginArgs),
     /// Logout from Apple Developer account
     Logout,
+    /// List all saved accounts
+    List,
+    /// Switch to a different account
+    Switch(SwitchArgs),
     /// List certificates for a team
     Certificates(CertificatesArgs),
     /// List devices registered to the account
     Devices(DevicesArgs),
     /// Register a new device
     RegisterDevice(RegisterDeviceArgs),
+    /// List all app IDs for a team
+    AppIds(AppIdsArgs),
 }
 
 #[derive(Debug, Args)]
@@ -73,44 +85,61 @@ pub struct RegisterDeviceArgs {
     pub name: String,
 }
 
+#[derive(Debug, Args)]
+pub struct AppIdsArgs {
+    /// Team ID to list app IDs for
+    #[arg(short = 't', long = "team", value_name = "TEAM_ID")]
+    pub team_id: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct SwitchArgs {
+    /// Email of the account to switch to
+    #[arg(value_name = "EMAIL", required = true)]
+    pub email: String,
+}
+
 pub async fn execute(args: AccountArgs) -> Result<()> {
     match args.command {
         AccountCommands::Login(login_args) => login(login_args).await,
         AccountCommands::Logout => logout().await,
+        AccountCommands::List => list_accounts().await,
+        AccountCommands::Switch(switch_args) => switch_account(switch_args).await,
         AccountCommands::Certificates(cert_args) => certificates(cert_args).await,
         AccountCommands::Devices(device_args) => devices(device_args).await,
         AccountCommands::RegisterDevice(register_args) => register_device(register_args).await,
+        AccountCommands::AppIds(app_id_args) => app_ids(app_id_args).await,
     }
 }
 
-pub async fn get_authenticated_account() -> Result<DeveloperSession> {
-    let credentials = AccountCredentials;
-    
-    let email = credentials.get_email()
-        .map_err(|_| anyhow::anyhow!("No stored credentials found. Please login first using 'plumesign account login'"))?;
-    
-    let password = credentials.get_password()
-        .map_err(|_| anyhow::anyhow!("No stored credentials found. Please login first using 'plumesign account login'"))?;
-    
-    let tfa_closure = || -> std::result::Result<String, String> {
-        println!("Enter 2FA code: ");
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input).map_err(|e| e.to_string())?;
-        std::result::Result::Ok(input.trim().to_string())
-    };
+fn get_settings_path() -> PathBuf {
+    get_data_path().join("accounts.json")
+}
 
+pub async fn get_authenticated_account() -> Result<DeveloperSession> {
+    let settings_path = get_settings_path();
+    let settings = AccountStore::load(&Some(settings_path.clone())).await?;
+
+    let gsa_account = settings.selected_account()
+        .ok_or_else(|| anyhow::anyhow!("No account selected. Please login first using 'plumesign account login'"))?
+        .clone();
+
+    if *gsa_account.status() == AccountStatus::NeedsReauth {
+        return Err(anyhow::anyhow!("Account is invalid. Please login again using 'plumesign account login'"));
+    }
+    
     let anisette_config = AnisetteConfiguration::default()
         .set_configuration_path(get_data_path());
-    
-    let login_closure = || -> std::result::Result<(String, String), String> {
-        std::result::Result::Ok((email.clone(), password.clone()))
-    };
 
-    log::info!("Authenticating with Apple...");
-    let account = Account::login(login_closure, tfa_closure, anisette_config).await
-        .map_err(|e| anyhow::anyhow!("Authentication failed: {}. Please login again.", e))?;
-    
-    Ok(DeveloperSession::with(account))
+    log::info!("Restoring session for {}...", gsa_account.email());
+
+    let session = DeveloperSession::new(
+        gsa_account.adsid().clone(), 
+        gsa_account.xcode_gs_token().clone(), 
+        anisette_config,
+    ).await?;
+
+    Ok(session)
 }
 
 async fn login(args: LoginArgs) -> Result<()> {
@@ -149,22 +178,29 @@ async fn login(args: LoginArgs) -> Result<()> {
     };
 
     println!("Logging in...");
-    Account::login(login_closure, tfa_closure, anisette_config).await?;
+    let account = Account::login(login_closure, tfa_closure, anisette_config).await?;
+    
+    let settings_path = get_settings_path();
+    let mut settings = AccountStore::load(&Some(settings_path.clone())).await?;
+    settings.accounts_add_from_session(username, account).await?;
 
-    AccountCredentials.set_credentials(
-        username,
-        password,
-    )?;
-
-    log::info!("Successfully logged in and credentials saved to keychain.");
+    log::info!("Successfully logged in and account saved.");
 
     Ok(())
 }
 
 async fn logout() -> Result<()> {
-    AccountCredentials.delete_password()?;
+    let settings_path = get_settings_path();
+    let mut settings = AccountStore::load(&Some(settings_path.clone())).await?;
     
-    log::info!("Successfully logged out and removed credentials from keychain.");
+    let email = settings.selected_account()
+        .ok_or_else(|| anyhow::anyhow!("No account currently logged in"))?
+        .email()
+        .clone();
+    
+    settings.accounts_remove(&email).await?;
+    
+    log::info!("Successfully logged out and removed account.");
     
     Ok(())
 }
@@ -240,4 +276,70 @@ pub async fn teams(session: &DeveloperSession) -> Result<String> {
         .interact()?;
 
     Ok(teams[selection].team_id.clone())
+}
+
+pub async fn app_ids(args: AppIdsArgs) -> Result<()> {
+    let session = get_authenticated_account().await?;
+
+    let team_id = if args.team_id.is_none() {
+        teams(&session).await?
+    } else {
+        args.team_id.unwrap()
+    };
+
+    let p = session.v1_list_app_ids(&team_id)
+        .await?
+        .data;
+
+    log::info!("{:#?}", p);
+
+    Ok(())
+}
+
+async fn list_accounts() -> Result<()> {
+    let settings_path = get_settings_path();
+    let settings = AccountStore::load(&Some(settings_path)).await?;
+    
+    let accounts = settings.accounts();
+    
+    if accounts.is_empty() {
+        log::info!("No accounts found. Use 'account login' to add an account.");
+        return Ok(());
+    }
+    
+    let selected_email = settings.selected_account().map(|a| a.email().clone());
+    
+    log::info!("Saved accounts:");
+    for (email, account) in accounts {
+        let status_str = match account.status() {
+            AccountStatus::Valid => "Valid",
+            AccountStatus::NeedsReauth => "Needs Re-auth",
+        };
+        
+        let selected = if Some(email) == selected_email.as_ref() { "(selected)" } else { "" };
+
+        log::info!(" [{}] {} - {} {}", 
+            status_str,
+            account.first_name(),
+            email,
+            selected
+        );
+    }
+    
+    Ok(())
+}
+
+async fn switch_account(args: SwitchArgs) -> Result<()> {
+    let settings_path = get_settings_path();
+    let mut settings = AccountStore::load(&Some(settings_path)).await?;
+    
+    if settings.get_account(&args.email).is_none() {
+        return Err(anyhow::anyhow!("Account '{}' not found. Use 'account list' to see available accounts.", args.email));
+    }
+    
+    settings.account_select(&args.email).await?;
+    
+    log::info!("Switched to account: {}", args.email);
+    
+    Ok(())
 }

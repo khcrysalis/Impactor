@@ -2,9 +2,7 @@ use plist::Dictionary;
 use serde::{Deserialize};
 use serde_json::json;
 
-use super::DeveloperSession;
-use crate::SessionRequestTrait;
-use crate::auth::account::request::RequestType;
+use super::{DeveloperSession, RequestType};
 use crate::developer_endpoint;
 
 use crate::Error;
@@ -15,7 +13,7 @@ const FREE_DEVELOPER_ACCOUNT_UNALLOWED_CAPABILITIES: &[&str] = &[
 ];
 
 impl DeveloperSession {
-    pub async fn v1_list_capabilities(&self, team: &str) -> Result<CapabilitiesResponse, Error> {
+    pub async fn v1_list_capabilities(&self, team: &String) -> Result<CapabilitiesResponse, Error> {
         let endpoint = developer_endpoint!("/v1/capabilities");
 
         let body = json!({ 
@@ -31,8 +29,8 @@ impl DeveloperSession {
 
     pub async fn v1_request_capabilities_for_entitlements(
         &self, 
-        team: &str,
-        id: &str, 
+        team: &String,
+        id: &String, 
         entitlements: &Dictionary
     ) -> Result<(), Error> {
         let capabilities = self.v1_list_capabilities(team).await?.data;

@@ -88,56 +88,110 @@ impl LoginDialog {
 #[derive(Clone)]
 pub struct SettingsDialog {
     pub dialog: Dialog,
-    pub logout_button: Button,
-    pub account_label: StaticText,
+    pub account_list: CheckListBox,
+    pub add_button: Button,
+    pub remove_button: Button,
 }
 
 pub fn create_settings_dialog(parent: &Window) -> SettingsDialog {
     let dialog = Dialog::builder(parent, "Settings")
-        .with_size(DIALOG_SIZE.0, DIALOG_SIZE.1)
+        .with_size(DIALOG_SIZE.0 + 50, DIALOG_SIZE.1 + 150)
         .build();
 
-    let sizer = BoxSizer::builder(Orientation::Vertical).build();
-    sizer.add_spacer(13);
+    let main_sizer = BoxSizer::builder(Orientation::Vertical).build();
+    
+    main_sizer.add_spacer(16);
 
-    let account_row = BoxSizer::builder(Orientation::Horizontal).build();
-    let account_label = StaticText::builder(&dialog).with_label("Not logged in").build();
-    let logout_button = Button::builder(&dialog).with_label("Login").build();
-    account_row.add(&account_label, 4, SizerFlag::Expand, 0);
-    account_row.add_stretch_spacer(1);
-    account_row.add(&logout_button, 1, SizerFlag::Expand, 0);
+    let accounts_label = StaticText::builder(&dialog)
+        .with_label("Apple ID Accounts")
+        .build();
+    main_sizer.add(&accounts_label, 0, SizerFlag::Left | SizerFlag::Left | SizerFlag::Right, 16);
+    
+    main_sizer.add_spacer(8);
 
-    sizer.add_sizer(&account_row, 0, SizerFlag::Right | SizerFlag::Left, 13);
+    let account_list = CheckListBox::builder(&dialog).build();
+    main_sizer.add(&account_list, 1, SizerFlag::Expand | SizerFlag::Left | SizerFlag::Right, 16);
 
-    sizer.add(&StaticLine::builder(&dialog).build(), 0, SizerFlag::Expand | SizerFlag::All, 13);
+    main_sizer.add_spacer(12);
 
-    dialog.set_sizer(sizer, true);
+    let button_row = BoxSizer::builder(Orientation::Horizontal).build();
+    let add_button = Button::builder(&dialog).with_label("Add Account").build();
+    let remove_button = Button::builder(&dialog).with_label("Remove Account").build();
+    
+    button_row.add(&add_button, 0, SizerFlag::All, 0);
+    button_row.add_spacer(8);
+    button_row.add(&remove_button, 0, SizerFlag::All, 0);
+    button_row.add_stretch_spacer(1);
+
+    main_sizer.add_sizer(&button_row, 0, SizerFlag::Expand | SizerFlag::Left | SizerFlag::Right, 16);
+    
+    main_sizer.add_spacer(16);
+
+    dialog.set_sizer(main_sizer, true);
 
     SettingsDialog {
         dialog,
-        logout_button,
-        account_label,
+        account_list,
+        add_button,
+        remove_button,
     }
 }
 
 impl SettingsDialog {
-    pub fn set_logout_handler(&self, on_logout: impl Fn() + 'static) {
-        self.logout_button.on_click(move |_| {
-            on_logout();
+    pub fn set_add_handler(&self, on_add: impl Fn() + 'static) {
+        self.add_button.on_click(move |_| {
+            on_add();
         });
     }
 
-    pub fn set_account_name(&self, account_name: Option<(String, String)>) {
-        match account_name {
-            Some((first, last)) => {
-                self.account_label.set_label(&format!("Logged in as {} {}", first, last));
-                self.logout_button.set_label("Logout");
+    pub fn set_remove_handler(&self, on_remove: impl Fn() + 'static) {
+        self.remove_button.on_click(move |_| {
+            on_remove();
+        });
+    }
+    
+    pub fn set_checklistbox_handler(&self, on_select: impl Fn(usize) + 'static) {
+        let checklistbox = self.account_list.clone();
+        self.account_list.on_selected(move |event_data| {
+            if let Some(selected_index) = event_data.get_selection() {
+                let selected_index = selected_index as usize;
+                
+                let count = checklistbox.get_count() as usize;
+                for i in 0..count {
+                    checklistbox.check(i as u32, false);
+                }
+                
+                checklistbox.check(selected_index as u32, true);
+                on_select(selected_index);
             }
-            None => {
-                self.account_label.set_label("Not logged in");
-                self.logout_button.set_label("Sign In");
+        });
+    }
+    
+    pub fn refresh_account_list(&self, accounts: Vec<(String, String, bool)>) {
+        self.account_list.clear();
+        
+        let has_accounts = !accounts.is_empty();
+        
+        for (i, (email, first_name, is_selected)) in accounts.into_iter().enumerate() {
+            let label = format!("{} ({})", first_name, email);
+            self.account_list.append(&label);
+            
+            if is_selected {
+                self.account_list.check(i as u32, true);
             }
         }
+        
+        self.remove_button.enable(has_accounts);
+    }
+    
+    pub fn get_checked_index(&self) -> Option<usize> {
+        let count = self.account_list.get_count() as usize;
+        for i in 0..count {
+            if self.account_list.is_checked(i as u32) {
+                return Some(i);
+            }
+        }
+        None
     }
 }
 

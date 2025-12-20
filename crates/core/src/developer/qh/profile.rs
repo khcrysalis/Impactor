@@ -3,16 +3,16 @@ use plist::{Data, Date, Dictionary, Value};
 
 use crate::Error;
 
-use crate::{SessionRequestTrait, developer_endpoint};
-use super::{DeveloperSession, ResponseMeta};
+use crate::developer_endpoint;
+use super::{DeveloperSession, QHResponseMeta};
 
 impl DeveloperSession {
-    pub async fn qh_get_profile(&self, team_id: &str, app_id_id: &str) -> Result<ProfilesResponse, Error> {
+    pub async fn qh_get_profile(&self, team_id: &String, app_id_id: &String) -> Result<ProfilesResponse, Error> {
         let endpoint = developer_endpoint!("/QH65B2/ios/downloadTeamProvisioningProfile.action");
 
         let mut body = Dictionary::new();
-        body.insert("teamId".to_string(), Value::String(team_id.to_string()));
-        body.insert("appIdId".to_string(), Value::String(app_id_id.to_string()));
+        body.insert("teamId".to_string(), Value::String(team_id.clone()));
+        body.insert("appIdId".to_string(), Value::String(app_id_id.clone()));
 
         let response = self.qh_send_request(&endpoint, Some(body)).await?;
         let response_data: ProfilesResponse = plist::from_value(&Value::Dictionary(response))?;
@@ -27,7 +27,7 @@ impl DeveloperSession {
 pub struct ProfilesResponse {
     pub provisioning_profile: Profile,
     #[serde(flatten)]
-    pub meta: ResponseMeta,
+    pub meta: QHResponseMeta,
 }
 
 #[allow(dead_code)]

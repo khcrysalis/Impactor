@@ -7,14 +7,15 @@ use std::{
 };
 
 use plume_core::{
-    AnisetteConfiguration, CertificateIdentity, auth::Account, developer::DeveloperSession
+    AnisetteConfiguration, CertificateIdentity, auth::Account, developer::DeveloperSession,
+    store::AccountStore
 };
 
 use idevice::{
     usbmuxd::{UsbmuxdConnection, UsbmuxdListenEvent},
 };
 
-use plume_shared::{AccountCredentials, get_data_path};
+use plume_shared::get_data_path;
 use plume_utils::{Device, Package, Signer, SignerInstallMode, SignerMode, get_device_for_id};
 
 use wxdragon::prelude::*;
@@ -137,18 +138,36 @@ impl PlumeFrame {
 impl PlumeFrame {
     fn setup_event_handlers(&mut self) {
         let (sender, receiver) = mpsc::unbounded_channel::<PlumeFrameMessage>();
-        let message_handler = self.setup_idle_handler(receiver);
-        Self::spawn_background_threads(sender.clone());
+        
+        // Load account store in a separate thread to avoid nested runtime issues
+        let settings_path = get_data_path().join("accounts.json");
+        let (tx, rx) = std::sync::mpsc::channel();
+        
+        thread::spawn(move || {
+            let rt = Builder::new_current_thread().enable_all().build().unwrap();
+            let store = rt.block_on(async {
+                AccountStore::load(&Some(settings_path)).await.unwrap_or_default()
+            });
+            tx.send(store).ok();
+        });
+        
+        // Wait for the account store to load
+        let account_store = rx.recv().unwrap_or_default();
+        
+        let message_handler = self.setup_idle_handler(receiver, account_store);
+        Self::spawn_background_threads(sender.clone(), message_handler.clone());
         self.bind_widget_handlers(sender, message_handler);
     }
 
     fn setup_idle_handler(
         &self,
         receiver: mpsc::UnboundedReceiver<PlumeFrameMessage>,
+        account_store: AccountStore,
     ) -> Rc<RefCell<PlumeFrameMessageHandler>> {
         let message_handler = Rc::new(RefCell::new(PlumeFrameMessageHandler::new(
             receiver,
             unsafe { ptr::read(self) },
+            account_store,
         )));
 
         let handler_for_idle = message_handler.clone();
@@ -161,9 +180,13 @@ impl PlumeFrame {
         message_handler
     }
 
-    fn spawn_background_threads(sender: mpsc::UnboundedSender<PlumeFrameMessage>) {
+    fn spawn_background_threads(
+        sender: mpsc::UnboundedSender<PlumeFrameMessage>,
+        message_handler: Rc<RefCell<PlumeFrameMessageHandler>>,
+    ) {
         Self::spawn_usbmuxd_listener(sender.clone());
-        Self::spawn_auto_login_thread(sender);
+        
+        message_handler.borrow().refresh_account_list_ui();
     }
 
     fn spawn_usbmuxd_listener(sender: mpsc::UnboundedSender<PlumeFrameMessage>) {
@@ -228,26 +251,6 @@ impl PlumeFrame {
         });
     }
 
-    fn spawn_auto_login_thread(sender: mpsc::UnboundedSender<PlumeFrameMessage>) {
-        thread::spawn(move || {
-            let creds = AccountCredentials;
-
-            let (email, password) = match (creds.get_email(), creds.get_password()) {
-                (Ok(email), Ok(password)) => (email, password),
-                _ => { return; }
-            };
-
-            match run_login_flow(sender.clone(), &email, &password) {
-                Ok(account) => {
-                    sender.send(PlumeFrameMessage::AccountLogin(account)).ok();
-                }
-                Err(e) => {
-                    sender.send(PlumeFrameMessage::AccountDeleted).ok();
-                    sender.send(PlumeFrameMessage::Error(format!("Login error: {}", e))).ok();
-                }
-            }
-        });
-    }
 }
 
 // MARK: - Button Handlers
@@ -276,21 +279,34 @@ impl PlumeFrame {
 
         self.apple_id_button.on_click({
             let account_dialog = Rc::new(self.settings_dialog.clone());
+            let message_handler = message_handler.clone();
             move |_| {
                 account_dialog.dialog.show(true);
+                message_handler.borrow().refresh_account_list_ui();
             }
         });
         
-        self.settings_dialog.set_logout_handler({
-            let message_handler = message_handler.clone();
-            let sender = sender.clone();
+        self.settings_dialog.set_add_handler({
             let login_dialog = self.login_dialog.clone();
             move || {
-                if message_handler.borrow().account_credentials.is_some() {
-                    sender.send(PlumeFrameMessage::AccountDeleted).ok(); 
-                } else {
-                    login_dialog.dialog.show(true);
+                login_dialog.dialog.show(true);
+            }
+        });
+        
+        self.settings_dialog.set_remove_handler({
+            let sender = sender.clone();
+            let settings_dialog = self.settings_dialog.clone();
+            move || {
+                if let Some(index) = settings_dialog.get_checked_index() {
+                    sender.send(PlumeFrameMessage::RequestAccountRemove(index)).ok();
                 }
+            }
+        });
+        
+        self.settings_dialog.set_checklistbox_handler({
+            let sender = sender.clone();
+            move |index| {
+                sender.send(PlumeFrameMessage::RequestAccountSelect(index)).ok();
             }
         });
 
@@ -366,16 +382,20 @@ impl PlumeFrame {
                     Some(device_id.to_string())
                 };
 
-                let selected_account = if signer_settings.mode == SignerMode::Pem {
-                    let Some(account) = binding.account_credentials.as_ref() else {
-                        sender.send(PlumeFrameMessage::Error("No Apple ID account available for installation.".to_string())).ok();
-                        return;
-                    };
-                    Some(account.clone())
+                let needs_account = signer_settings.mode == SignerMode::Pem;
+                
+                let gsa_account_data = if needs_account {
+                    match binding.account_store.selected_account() {
+                        Some(account) => Some(account.clone()),
+                        None => {
+                            sender.send(PlumeFrameMessage::Error("No account selected. Please add an account in Settings.".to_string())).ok();
+                            return;
+                        }
+                    }
                 } else {
                     None
                 };
-
+                
                 let package = selected_package.clone();
                 let sender_clone = sender.clone();
 
@@ -415,16 +435,24 @@ impl PlumeFrame {
                             None
                         };
                         
-                        sender_clone.send(PlumeFrameMessage::WorkUpdated("Preparing package for installation...".into())).ok();
+                        sender_clone.send(PlumeFrameMessage::WorkUpdated("Preparing package for installation...".into(), 10)).ok();
 
                         let package_file;
 
                         match signer_settings.mode {
                             SignerMode::Pem => {
-                                let Some(account) = selected_account else {
+                                let Some(gsa_account) = gsa_account_data else {
                                     return Err("No Apple ID account available for installation.".to_string());
                                 };
-                                let session = DeveloperSession::with(account.clone());
+
+                                let anisette_config = AnisetteConfiguration::default()
+                                    .set_configuration_path(get_data_path());
+
+                                let session = DeveloperSession::new(
+                                    gsa_account.adsid().clone(), 
+                                    gsa_account.xcode_gs_token().clone(), 
+                                    anisette_config,
+                                ).await.map_err(|e| format!("Failed to create developer session: {}", e))?;
 
                                 let teams = session.qh_list_teams().await
                                     .map_err(|e| format!("Failed to list teams: {}", e))?.teams;
@@ -450,7 +478,7 @@ impl PlumeFrame {
                                     &teams[selected_index as usize].team_id
                                 };
 
-                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Obtaining certificate identity...".into())).ok();
+                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Obtaining certificate identity...".into(), 20)).ok();
 
                                 let cert_identity = CertificateIdentity::new_with_session(
                                     &session,
@@ -460,7 +488,7 @@ impl PlumeFrame {
                                 ).await.map_err(|e| e.to_string())?;
 
                                 if let Some(device) = device.as_ref() {
-                                    sender_clone.send(PlumeFrameMessage::WorkUpdated("Ensuring current device is registered...".to_string())).ok();
+                                    sender_clone.send(PlumeFrameMessage::WorkUpdated("Ensuring current device is registered...".to_string(), 30)).ok();
                                     session.qh_ensure_device(
                                         team_id,
                                         &device.name,
@@ -473,17 +501,17 @@ impl PlumeFrame {
                                 let bundle = package.get_package_bundle()
                                     .map_err(|e| format!("Failed to get package bundle: {}", e))?;
 
-                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Modifying bundle...".into())).ok();
+                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Modifying bundle...".into(), 40)).ok();
 
                                 signer.modify_bundle(&bundle, &Some(team_id.clone())).await
                                     .map_err(|e| format!("Failed to modify bundle: {}", e))?;
 
-                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Registering bundle...".into())).ok();
+                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Registering bundle...".into(), 50)).ok();
 
                                 signer.register_bundle(&bundle, &session, &team_id).await
                                     .map_err(|e| format!("Failed to register bundle: {}", e))?;
 
-                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Signing bundle...".into())).ok();
+                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Signing bundle...".into(), 60)).ok();
 
                                 signer.sign_bundle(&bundle).await
                                     .map_err(|e| format!("Failed to sign bundle: {}", e))?;
@@ -496,12 +524,12 @@ impl PlumeFrame {
                                 let bundle = package.get_package_bundle()
                                     .map_err(|e| format!("Failed to get package bundle: {}", e))?;
 
-                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Modifying bundle...".into())).ok();
+                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Modifying bundle...".into(), 40)).ok();
 
                                 signer.modify_bundle(&bundle, &None).await
                                     .map_err(|e| format!("Failed to modify bundle: {}", e))?;
 
-                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Signing bundle...".into())).ok();
+                                sender_clone.send(PlumeFrameMessage::WorkUpdated("Signing bundle...".into(), 60)).ok();
 
                                 signer.sign_bundle(&bundle).await
                                     .map_err(|e| format!("Failed to sign bundle: {}", e))?;
@@ -516,7 +544,7 @@ impl PlumeFrame {
                             }
                         };
 
-                        sender_clone.send(PlumeFrameMessage::WorkUpdated("Preparing...".into())).ok();
+                        sender_clone.send(PlumeFrameMessage::WorkUpdated("Preparing...".into(), 70)).ok();
 
                         match signer_settings.install_mode {
                             SignerInstallMode::InstallMac => {
@@ -536,7 +564,8 @@ impl PlumeFrame {
                                     move |progress: i32| {
                                     let sender = sender.clone();
                                         async move {
-                                            sender.send(PlumeFrameMessage::WorkUpdated(format!("Installing... {}%", progress))).ok();
+                                            let percent = 70 + ((progress as f32 / 100.0) * 30.0).round() as i32;
+                                            sender.send(PlumeFrameMessage::WorkUpdated(format!("Installing... {}%", progress), percent)).ok();
                                         }
                                     }
                                 };
@@ -574,11 +603,12 @@ impl PlumeFrame {
                     });
 
                     if let Err(e) = install_result {
-                    sender_clone.send(PlumeFrameMessage::WorkEnded).ok();
-                    sender_clone.send(PlumeFrameMessage::Error(format!("{}", e))).ok();
-                    return;
+                        sender_clone.send(PlumeFrameMessage::WorkEnded).ok();
+                        sender_clone.send(PlumeFrameMessage::Error(format!("{}", e))).ok();
+                        return;
+                    }
                 }
-            });
+            );
             }
         });
 
@@ -626,13 +656,37 @@ impl PlumeFrame {
                     let password = password.clone();
                     let sender = sender.clone();
                     move || {
-                        match run_login_flow(sender.clone(), &email, &password) {
+                        let rt = Builder::new_current_thread().enable_all().build().unwrap();
+                        
+                        let anisette_config = AnisetteConfiguration::default()
+                            .set_configuration_path(get_data_path());
+                        
+                        let (code_tx, code_rx) = std::sync::mpsc::channel::<Result<String, String>>();
+                        
+                        let account_result = rt.block_on(Account::login(
+                            || Ok((email.clone(), password.clone())),
+                            || {
+                                if sender.send(PlumeFrameMessage::AwaitingTwoFactorCode(code_tx.clone())).is_err() {
+                                    return Err("Failed to send 2FA request to main thread.".to_string());
+                                }
+                                match code_rx.recv() {
+                                    Ok(result) => result,
+                                    Err(_) => Err("2FA process cancelled or main thread error.".to_string()),
+                                }
+                            },
+                            anisette_config,
+                        ));
+                        
+                        match account_result {
                             Ok(account) => {
-                                sender.send(PlumeFrameMessage::AccountLogin(account)).ok();
-
-                                if let Err(e) = AccountCredentials.set_credentials(email, password) {
-                                    sender.send(PlumeFrameMessage::Error(format!("Failed to save credentials: {}", e))).ok();
-                                    return;
+                                let gsa_account_result = rt.block_on(plume_core::store::account_from_session(email.clone(), account));
+                                match gsa_account_result {
+                                    Ok(gsa_account) => {
+                                        sender.send(PlumeFrameMessage::RequestAccountAdd(gsa_account)).ok();
+                                    },
+                                    Err(e) => {
+                                        sender.send(PlumeFrameMessage::Error(format!("Failed to create GSA account from session: {}", e))).ok();
+                                    },
                                 }
                             },
                             Err(e) => {
@@ -645,38 +699,4 @@ impl PlumeFrame {
         });
 
     }
-}
-
-// MARK: - Login flow
-
-pub fn run_login_flow(
-    sender: mpsc::UnboundedSender<PlumeFrameMessage>,
-    email: &String,
-    password: &String,
-) -> Result<Account, String> {
-    let anisette_config = AnisetteConfiguration::default()
-        .set_configuration_path(get_data_path());
-
-    let rt = Builder::new_current_thread().enable_all().build().unwrap();
-    
-    let (code_tx, code_rx) = std::sync::mpsc::channel::<Result<String, String>>();
-
-    let account_result = rt.block_on(Account::login(
-        || Ok((email.clone(), password.clone())),
-        || {
-            if sender
-                .send(PlumeFrameMessage::AwaitingTwoFactorCode(code_tx.clone()))
-                .is_err()
-            {
-                return Err("Failed to send 2FA request to main thread.".to_string());
-            }
-            match code_rx.recv() {
-                Ok(result) => result,
-                Err(_) => Err("2FA process cancelled or main thread error.".to_string()),
-            }
-        },
-        anisette_config,
-    ));
-
-    account_result.map_err(|e| e.to_string())
 }

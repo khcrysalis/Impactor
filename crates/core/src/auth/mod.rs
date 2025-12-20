@@ -3,40 +3,30 @@ pub mod anisette_data;
 
 use serde::{Deserialize, Serialize};
 use omnisette::AnisetteConfiguration;
-use reqwest::{Certificate, Client, ClientBuilder};
+use reqwest::Client;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 
-use crate::Error;
-
+use crate::{Error, client};
 use crate::auth::anisette_data::AnisetteData;
 
 const GSA_ENDPOINT: &str = "https://gsa.apple.com/grandslam/GsService2";
-const APPLE_ROOT: &[u8] = include_bytes!("./apple_root.der");
 
 #[derive(Debug, Clone)]
 pub struct Account {
     pub anisette: Arc<Mutex<AnisetteData>>,
-    // pub spd:  Option<plist::Dictionary>,
-    //mutable spd
     pub spd: Option<plist::Dictionary>,
-    client: Client,
+    pub client: Client,
 }
 
 impl Account {
     pub async fn new(config: AnisetteConfiguration) -> Result<Self, Error> {
         let anisette = AnisetteData::new(config).await?;
-        Ok(Self::new_with_anisette(anisette)?)
+        Self::new_with_anisette(anisette)
     }
     
-    fn new_with_anisette(anisette: AnisetteData) -> Result<Self, Error> {
-        let client = ClientBuilder::new()
-            .add_root_certificate(Certificate::from_der(APPLE_ROOT)?)
-            // uncomment when debugging w/ charles proxy
-            // .danger_accept_invalid_certs(true)
-            .http1_title_case_headers()
-            .connection_verbose(true)
-            .build()?;
+    pub fn new_with_anisette(anisette: AnisetteData) -> Result<Self, Error> {
+        let client = client()?;
         Ok(Account {
             anisette: Arc::new(Mutex::new(anisette)),
             spd: None,
@@ -44,8 +34,6 @@ impl Account {
         })
     }
 }
-
-// MARK: - Request/Response Structs
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InitRequestBody {
@@ -118,12 +106,11 @@ pub struct AppToken {
     pub auth_token: String,
     pub app: String,
 }
-//Just make it return a custom enum, with LoggedIn(account: AppleAccount) or Needs2FA(FinishLoginDel: fn(i32) -> TFAResponse)
+
 #[repr(C)]
 #[derive(Debug)]
 pub enum LoginState {
     LoggedIn,
-    // NeedsSMS2FASent(Send2FAToDevices),
     NeedsDevice2FA,
     Needs2FAVerification,
     NeedsSMS2FA,

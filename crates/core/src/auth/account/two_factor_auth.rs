@@ -127,57 +127,37 @@ impl Account {
         Ok(LoginState::NeedsLogin)
     }
     
-    pub async fn build_2fa_headers(&self, sms: bool) -> HeaderMap {
+    async fn build_2fa_headers(&self, sms: bool) -> HeaderMap {
         let spd = self.spd.as_ref().unwrap();
         let dsid = spd.get("adsid").unwrap().as_string().unwrap();
         let token = spd.get("GsIdmsToken").unwrap().as_string().unwrap();
 
         let identity_token = general_purpose::STANDARD.encode(format!("{}:{}", dsid, token));
 
-        let valid_anisette = self.get_anisette().await;
-
         let mut headers = HeaderMap::new();
-        valid_anisette
-            .generate_headers(false, true, true)
-            .iter()
-            .for_each(|(k, v)| {
-                headers.append(
-                    HeaderName::from_bytes(k.as_bytes()).unwrap(),
-                    HeaderValue::from_str(v).unwrap(),
-                );
-            });
-
-        if !sms {
+        let valid_anisette = self.get_anisette().await;
+        for (k, v) in valid_anisette.generate_headers(false, true, true) {
             headers.insert(
-                "Content-Type",
-                HeaderValue::from_str("text/x-xml-plist").unwrap(),
-            );
-            headers.insert(
-                "Accept", 
-                HeaderValue::from_str("text/x-xml-plist").unwrap()
-            );
-        } else {
-            headers.insert(
-                "Content-Type",
-                HeaderValue::from_str("application/json").unwrap(),
-            );
-            headers.insert(
-                "Accept",
-                HeaderValue::from_str("application/json").unwrap(),
+                HeaderName::from_bytes(k.as_bytes()).unwrap(),
+                HeaderValue::from_str(&v).unwrap(),
             );
         }
-        headers.insert("User-Agent", HeaderValue::from_str("Xcode").unwrap());
-        headers.insert("Accept-Language", HeaderValue::from_str("en-us").unwrap());
-        headers.append(
-            "X-Apple-Identity-Token",
-            HeaderValue::from_str(&identity_token).unwrap(),
-        );
+        if !sms {
+            headers.insert("Content-Type", HeaderValue::from_static("text/x-xml-plist"));
+            headers.insert("Accept", HeaderValue::from_static("text/x-xml-plist"));
+        } else {
+            headers.insert("Content-Type", HeaderValue::from_static("application/json"));
+            headers.insert("Accept", HeaderValue::from_static("application/json"));
+        }
+        headers.insert("User-Agent", HeaderValue::from_static("Xcode"));
+        headers.insert("Accept-Language", HeaderValue::from_static("en-us"));
+        headers.append("X-Apple-Identity-Token", HeaderValue::from_str(&identity_token).unwrap());
 
-        headers.insert(
-            "Loc",
-            HeaderValue::from_str(&valid_anisette.get_header("x-apple-locale").unwrap()).unwrap(),
-        );
+        if let Ok(locale) = valid_anisette.get_header("x-apple-locale") {
+            headers.insert("Loc", HeaderValue::from_str(&locale).unwrap());
+        }
 
         headers
     }
 }
+

@@ -49,4 +49,6 @@ goblin = "0.9.3"
 [features]
 default = []
 vendored-botan = ["botan/vendored"]
+# TODO: add features lmao
 tweaks = []
+store = []
