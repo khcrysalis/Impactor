@@ -87,8 +87,7 @@
                 "install -Dm644 package/flatpak/icons/hicolor/48x48/apps/com.khcrysalis.PlumeImpactor.png /app/share/icons/hicolor/48x48/apps/com.khcrysalis.PlumeImpactor.png",
                 "install -Dm644 package/flatpak/icons/hicolor/64x64/apps/com.khcrysalis.PlumeImpactor.png /app/share/icons/hicolor/64x64/apps/com.khcrysalis.PlumeImpactor.png",
                 "install -Dm644 package/flatpak/icons/hicolor/128x128/apps/com.khcrysalis.PlumeImpactor.png /app/share/icons/hicolor/128x128/apps/com.khcrysalis.PlumeImpactor.png",
-                "install -Dm644 package/flatpak/icons/hicolor/256x256/apps/com.khcrysalis.PlumeImpactor.png /app/share/icons/hicolor/256x256/apps/com.khcrysalis.PlumeImpactor.png",
-                "install -Dm644 package/flatpak/icons/hicolor/512x512/apps/com.khcrysalis.PlumeImpactor.png /app/share/icons/hicolor/512x512/apps/com.khcrysalis.PlumeImpactor.png"
+                "install -Dm644 package/flatpak/icons/hicolor/256x256/apps/com.khcrysalis.PlumeImpactor.png /app/share/icons/hicolor/256x256/apps/com.khcrysalis.PlumeImpactor.png"
             ],
             "sources": [
                 {
