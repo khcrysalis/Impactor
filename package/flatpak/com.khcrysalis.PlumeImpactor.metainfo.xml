@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.khcrysalis.PlumeImpactor</id>
+  
+  <name>Plume Impactor</name>
+  <summary>Feature rich iOS sideloading application</summary>
+  
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+  
+  <description>
+    <p>
+      WIP open-source, cross-platform, and feature rich iOS/tvOS sideloading application. Supporting macOS, Linux, and Windows.
+    </p>
+  </description>
+  
+  <launchable type="desktop-id">com.khcrysalis.PlumeImpactor.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/khcrysalis/PlumeImpactor/refs/heads/main/demo.png</image>
+    </screenshot>
+  </screenshots>
+</component>

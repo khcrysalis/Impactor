@@ -4,3 +4,4 @@ state.plist
 *.DS_Store
 /tests
 /build
+cargo-sources.json
