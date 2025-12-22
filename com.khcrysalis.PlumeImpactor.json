@@ -3,52 +3,108 @@
     "runtime": "org.freedesktop.Platform",
     "runtime-version": "25.08",
     "sdk": "org.freedesktop.Sdk",
+    "command": "plumeimpactor",
     "sdk-extensions": [
         "org.freedesktop.Sdk.Extension.rust-stable",
         "org.freedesktop.Sdk.Extension.llvm21"
     ],
-    "command": "plumeimpactor",
     "finish-args": [
-        "--share=ipc",
+        "--share=network",
         "--socket=fallback-x11",
         "--socket=wayland",
-        "--socket=system-bus",
+        "--share=ipc",
         "--device=all",
-        "--talk-name=org.freedesktop.Notifications"
+        "--talk-name=org.freedesktop.Notifications",
+        "--filesystem=/run/usbmuxd",
+        "--filesystem=/var/lib/lockdown"
     ],
     "build-options": {
         "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm21/bin",
-        "prepend-ld-library-path": "/usr/lib/sdk/llvm21/lib",
-        "build-args": [
-            "--share=network"
-        ],
         "env": {
-            "CARGO_HOME": "/run/build/plumeimpactor/cargo"
+            "CARGO_HOME": "/run/build/plumeimpactor/cargo",
+            "BINDGEN_EXTRA_CLANG_ARGS": "--sysroot=/usr -isystem /usr/include -isystem /usr/include/x86_64-linux-gnu -isystem /usr/lib/sdk/llvm21/lib/clang/21/include",
+            "BINDGEN_EXTRA_CLANG_ARGS_x86_64-unknown-linux-gnu": "--sysroot=/usr -isystem /usr/include -isystem /usr/include/x86_64-linux-gnu -isystem /usr/lib/sdk/llvm21/lib/clang/21/include",
+            "BINDGEN_EXTRA_CLANG_ARGS_x86_64_unknown_linux_gnu": "--sysroot=/usr -isystem /usr/include -isystem /usr/include/x86_64-linux-gnu -isystem /usr/lib/sdk/llvm21/lib/clang/21/include"
         }
     },
+    "cleanup": [
+        "/include",
+        "/lib/pkgconfig",
+        "/share/pkgconfig",
+        "/share/aclocal",
+        "/share/man"
+    ],
     "modules": [
+        {
+            "name": "libnotify",
+            "buildsystem": "meson",
+            "config-opts": [
+                "-Dtests=false",
+                "-Dintrospection=disabled",
+                "-Dman=false",
+                "-Dgtk_doc=false"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://download.gnome.org/sources/libnotify/0.8/libnotify-0.8.7.tar.xz",
+                    "sha256": "4be15202ec4184fce1ac15997ece5530d2be32fe9573875aeb10e3b573858748"
+                }
+            ]
+        },
+        {
+            "name": "libzip",
+            "buildsystem": "cmake-ninja",
+            "config-opts": [
+                "-DBUILD_SHARED_LIBS=ON",
+                "-DBUILD_TOOLS=OFF",
+                "-DBUILD_REGRESS=OFF",
+                "-DBUILD_EXAMPLES=OFF",
+                "-DENABLE_BZIP2=ON",
+                "-DENABLE_LZMA=ON",
+                "-DENABLE_ZSTD=ON"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://libzip.org/download/libzip-1.11.4.tar.xz",
+                    "sha256": "8a247f57d1e3e6f6d11413b12a6f28a9d388de110adc0ec608d893180ed7097b"
+                }
+            ]
+        },
         {
             "name": "plumeimpactor",
             "buildsystem": "simple",
             "build-commands": [
-                "cargo --offline fetch --manifest-path Cargo.toml --verbose",
-                "cargo build --bin plumeimpactor --release --verbose",
-                "install -Dm755 ./target/release/plumeimpactor -t /app/bin/",
-                "install -Dm644 ./package/flatpak/${FLATPAK_ID}.desktop -t /app/share/applications/",
-                "install -Dm644 ./package/flatpak/${FLATPAK_ID}.metainfo.xml -t /app/share/metainfo/",
-                "install -Dm644 ./package/flatpak/icons/hicolor/16x16/apps/${FLATPAK_ID}.png -t /app/share/icons/hicolor/16x16/apps/",
-                "install -Dm644 ./package/flatpak/icons/hicolor/32x32/apps/${FLATPAK_ID}.png -t /app/share/icons/hicolor/32x32/apps/",
-                "install -Dm644 ./package/flatpak/icons/hicolor/48x48/apps/${FLATPAK_ID}.png -t /app/share/icons/hicolor/48x48/apps/",
-                "install -Dm644 ./package/flatpak/icons/hicolor/64x64/apps/${FLATPAK_ID}.png -t /app/share/icons/hicolor/64x64/apps/",
-                "install -Dm644 ./package/flatpak/icons/hicolor/128x128/apps/${FLATPAK_ID}.png -t /app/share/icons/hicolor/128x128/apps/",
-                "install -Dm644 ./package/flatpak/icons/hicolor/256x256/apps/${FLATPAK_ID}.png -t /app/share/icons/hicolor/256x256/apps/"
+                "python3 - <<'PY'\nimport pathlib\nimport shutil\nimport zipfile\n\nzip_path = pathlib.Path('wxWidgets-3.3.1.zip')\nextract_root = pathlib.Path('wxwidgets-extract')\n\nif extract_root.exists():\n    shutil.rmtree(extract_root)\nextract_root.mkdir(parents=True, exist_ok=True)\n\nwith zipfile.ZipFile(zip_path, 'r') as zf:\n    zf.extractall(extract_root)\n\ncandidates = list(extract_root.iterdir())\nif len(candidates) == 1 and candidates[0].is_dir():\n    source_dir = candidates[0]\nelse:\n    source_dir = extract_root\n\nif not (source_dir / 'configure').exists():\n    raise SystemExit('wxWidgets configure not found after extraction')\n\ndest_dir = pathlib.Path('target/release/wxWidgets')\nif dest_dir.exists():\n    shutil.rmtree(dest_dir)\n\ndest_dir.parent.mkdir(parents=True, exist_ok=True)\nshutil.copytree(source_dir, dest_dir)\nPY",
+                "cargo --offline fetch --manifest-path Cargo.toml",
+                "bash -c 'export RUSTFLAGS=\"-C link-arg=-L/app/lib -C link-arg=-lnotify\"; cargo --offline build --release -p plumeimpactor'",
+                "install -Dm755 target/release/plumeimpactor /app/bin/plumeimpactor",
+                "install -Dm644 package/flatpak/com.khcrysalis.PlumeImpactor.desktop /app/share/applications/com.khcrysalis.PlumeImpactor.desktop",
+                "install -Dm644 package/flatpak/com.khcrysalis.PlumeImpactor.metainfo.xml /app/share/metainfo/com.khcrysalis.PlumeImpactor.metainfo.xml",
+                "install -Dm644 package/flatpak/icons/hicolor/16x16/apps/com.khcrysalis.PlumeImpactor.png /app/share/icons/hicolor/16x16/apps/com.khcrysalis.PlumeImpactor.png",
+                "install -Dm644 package/flatpak/icons/hicolor/32x32/apps/com.khcrysalis.PlumeImpactor.png /app/share/icons/hicolor/32x32/apps/com.khcrysalis.PlumeImpactor.png",
+                "install -Dm644 package/flatpak/icons/hicolor/48x48/apps/com.khcrysalis.PlumeImpactor.png /app/share/icons/hicolor/48x48/apps/com.khcrysalis.PlumeImpactor.png",
+                "install -Dm644 package/flatpak/icons/hicolor/64x64/apps/com.khcrysalis.PlumeImpactor.png /app/share/icons/hicolor/64x64/apps/com.khcrysalis.PlumeImpactor.png",
+                "install -Dm644 package/flatpak/icons/hicolor/128x128/apps/com.khcrysalis.PlumeImpactor.png /app/share/icons/hicolor/128x128/apps/com.khcrysalis.PlumeImpactor.png",
+                "install -Dm644 package/flatpak/icons/hicolor/256x256/apps/com.khcrysalis.PlumeImpactor.png /app/share/icons/hicolor/256x256/apps/com.khcrysalis.PlumeImpactor.png",
+                "install -Dm644 package/flatpak/icons/hicolor/512x512/apps/com.khcrysalis.PlumeImpactor.png /app/share/icons/hicolor/512x512/apps/com.khcrysalis.PlumeImpactor.png"
             ],
             "sources": [
                 {
+                    "type": "file",
+                    "url": "https://github.com/wxWidgets/wxWidgets/releases/download/v3.3.1/wxWidgets-3.3.1.zip",
+                    "sha256": "c25311fecbc4b508577bdee4e90660da8d0d79f4099bc40e9cac8338879f9334",
+                    "dest-filename": "wxWidgets-3.3.1.zip"
+                },
+                {
+                    "type": "file",
+                    "path": "cargo-sources.json"
+                },
+                {
                     "type": "dir",
                     "path": "."
-                },
-                "cargo-sources.json"
+                }
             ]
         }
     ]

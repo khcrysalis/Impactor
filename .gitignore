@@ -5,3 +5,6 @@ state.plist
 /tests
 /build
 cargo-sources.json
+/build-dir
+/.flatpak-builder
+com.khcrysalis.PlumeImpactor.generated.json
