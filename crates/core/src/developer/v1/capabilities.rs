@@ -10,6 +10,7 @@ use std::collections::HashSet;
 
 const FREE_DEVELOPER_ACCOUNT_UNALLOWED_CAPABILITIES: &[&str] = &[
     "AUTOFILL_CREDENTIAL_PROVIDER",
+    "APPLE_ID_AUTH",
 ];
 
 impl DeveloperSession {
