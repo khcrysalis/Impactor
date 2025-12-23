@@ -4,3 +4,8 @@ state.plist
 *.DS_Store
 /tests
 /build
+cargo-sources.json
+/build-dir
+/.flatpak-builder
+com.khcrysalis.PlumeImpactor.generated.json
+/flatpak-builder-tools
