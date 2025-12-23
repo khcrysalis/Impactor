@@ -12,6 +12,7 @@ use plume_core::{
 };
 
 use idevice::{
+    IdeviceError,
     usbmuxd::{UsbmuxdConnection, UsbmuxdListenEvent},
 };
 
@@ -204,7 +205,17 @@ impl PlumeFrame {
                 let mut muxer = match UsbmuxdConnection::default().await {
                     Ok(muxer) => muxer,
                     Err(e) => {
-                        sender.send(PlumeFrameMessage::Error(format!("Failed to connect to usbmuxd: {}", e))).ok();
+                        sender.send(PlumeFrameMessage::Error(
+                            match e {
+                                IdeviceError::Socket(_) => format!(
+                                    "Failed to connect to usbmuxd: {}
+
+This could be because usbmuxd isn't installed, isn't running, or you have not connected a device yet.",
+                                    e
+                                ),
+                                _ => format!("Failed to connect to usbmuxd: {}", e)
+                            }
+                        )).ok();
                         return;
                     }
                 };
