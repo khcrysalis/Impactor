@@ -15,8 +15,7 @@
         "--share=ipc",
         "--device=all",
         "--talk-name=org.freedesktop.Notifications",
-        "--filesystem=/run/usbmuxd",
-        "--filesystem=/var/lib/lockdown"
+        "--filesystem=/run/usbmuxd"
     ],
     "build-options": {
         "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm21/bin",
@@ -77,7 +76,7 @@
             "name": "plumeimpactor",
             "buildsystem": "simple",
             "build-commands": [
-                "python3 - <<'PY'\nimport pathlib\nimport shutil\nimport zipfile\n\nzip_path = pathlib.Path('wxWidgets-3.3.1.zip')\nextract_root = pathlib.Path('wxwidgets-extract')\n\nif extract_root.exists():\n    shutil.rmtree(extract_root)\nextract_root.mkdir(parents=True, exist_ok=True)\n\nwith zipfile.ZipFile(zip_path, 'r') as zf:\n    zf.extractall(extract_root)\n\ncandidates = list(extract_root.iterdir())\nif len(candidates) == 1 and candidates[0].is_dir():\n    source_dir = candidates[0]\nelse:\n    source_dir = extract_root\n\nif not (source_dir / 'configure').exists():\n    raise SystemExit('wxWidgets configure not found after extraction')\n\ndest_dir = pathlib.Path('target/release/wxWidgets')\nif dest_dir.exists():\n    shutil.rmtree(dest_dir)\n\ndest_dir.parent.mkdir(parents=True, exist_ok=True)\nshutil.copytree(source_dir, dest_dir)\nPY",
+                "python3 ./wxwidgets-extract.py",
                 "cargo --offline fetch --manifest-path Cargo.toml",
                 "bash -c 'export RUSTFLAGS=\"-C link-arg=-L/app/lib -C link-arg=-lnotify\"; cargo --offline build --release -p plumeimpactor'",
                 "install -Dm755 target/release/plumeimpactor /app/bin/plumeimpactor",
