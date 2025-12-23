@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.khcrysalis.PlumeImpactor</id>
+  
+  <name>Plume Impactor</name>
+  <summary>Easily sideload apps</summary>
+  
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <content_rating type="oars-1.1" />
+  
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+  
+  <recommends>
+    <control>keyboard</control>
+    <control>pointing</control>
+    <control>touch</control>
+  </recommends>
+  
+  <url type="bugtracker">https://github.com/khcrysalis/PlumeImpactor/issues</url>
+  <url type="homepage">https://github.com/khcrysalis/PlumeImpactor</url>
+  <url type="donation">https://github.com/sponsors/khcrysalis</url>
+  <url type="vcs-browser">https://github.com/khcrysalis/PlumeImpactor</url>
+  
+  <description>
+    <p>
+      WIP open-source, cross-platform, and feature rich iOS/tvOS sideloading application. Supporting macOS, Linux, and Windows.
+    </p>
+  </description>
+  
+  <launchable type="desktop-id">com.khcrysalis.PlumeImpactor.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/khcrysalis/PlumeImpactor/refs/heads/main/package/flatpak/screenshots/light.png</image>
+      <caption>Screenshot of Impactor after importing an app.</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/khcrysalis/PlumeImpactor/refs/heads/main/package/flatpak/screenshots/dark.png</image>
+      <caption>Screenshot of Impactor after importing an app, in dark mode.</caption>
+    </screenshot>
+  </screenshots>
+  
+  <branding>
+    <color type="primary" scheme_preference="light">#c44e6c</color>
+    <color type="primary" scheme_preference="dark">#a6415b</color>
+  </branding>
+  
+  <releases>
+    <release version="1.3.0" date="2025-12-22">
+      <url type="details">https://github.com/khcrysalis/PlumeImpactor/releases/tag/v1.3.0</url>
+      <description>
+        <p>Dark mode for Windows and more</p>
+        <ul>
+          <li>Adds support for dark mode on Windows.</li>
+          <li>Adds progress bar instead of a spinner when installing apps.</li>
+          <li>Adds support for multiple accounts, saving apple-id sessions without needing to constantly log-in every launch.</li>
+          <li>Adds automatic device registering/installing when signing with plumesign CLI.</li>
+          <li>Fixes unhelpful error messages.</li>
+          <li>Fixes issues with names not getting properly stripped when registering app ids.</li>
+          <li>Updates idevice to support better error messages &amp; faster ipa upload speeds.</li>
+        </ul>
+      </description>
+    </release>
+    
+    <release version="1.2.0" date="2025-12-13">
+      <url type="details">https://github.com/khcrysalis/PlumeImpactor/releases/tag/v1.2.0</url>
+      <description>
+        <p>Liquid glass, tweak injection, adhoc signing and more</p>
+        <ul>
+          <li>Now supports Liquid Glass.</li>
+          <li>Now includes CLI builds in releases.</li>
+          <li>Added tweak injection using ElleKit.</li>
+          <li>Added an option to force Liquid Glass on apps.</li>
+          <li>Added Adhoc signing configuration for users who use AppSync Unified.</li>
+          <li>Added "Normal Install" which allows users to install encrypted apps (i.e. .ipa's gathered fromipatool)</li>
+          <li>Added option to export modified apps.</li>
+          <li>Fixed some apps not having proper exec permissions, thus end up not launching when sideloaded on macOS.</li>
+          <li>Fixed issue where certain disallowed entitlements were requested free accounts.</li>
+        </ul>
+      </description>
+    </release>
+    
+    <release version="1.1.1" date="2025-12-1">
+      <url type="details">https://github.com/khcrysalis/PlumeImpactor/releases/tag/v1.1.1</url>
+      <description>
+        <p>Fix improper signing for some dylibs and more</p>
+        <ul>
+          <li>Fixes improper signing handling for certain cases involving .dylibs</li>
+          <li>Now enables wifi-debugging on devices upon pairing-file placement.</li>
+          <li>Fixes pairing-file installation handling on LiveContainer+SideStore by creating parent directories first before placing by @se2crid in #25</li>
+          <li>Fixes some scaling issues on Windows by disabling HiDPI awareness in manifest.</li>
+        </ul>
+      </description>
+    </release>
+    
+    <release version="1.1.0" date="2025-11-27">
+      <url type="details">https://github.com/khcrysalis/PlumeImpactor/releases/tag/v1.1.0</url>
+      <description>
+        <p>Linux arm64 support, fixed macOS logins and more</p>
+        <ul>
+          <li>Overall UI improvements, now when pressing "Back" when finishing sideloading, it takes you to the main page.</li>
+          <li>Fixes Windows not saving credentials properly causing automatic login to not function.</li>
+          <li>Fixes 2FA via SMS headers not being valid, causing the code to not be sent.</li>
+          <li>Fixes macOS logins.</li>
+          <li>Fixes Linux AppImage's from not including necessary libraries for the GUI to function.</li>
+          <li>Adds Linux arm64 support.</li>
+        </ul>
+      </description>
+    </release>
+    
+    <release version="1.0.0" date="2025-11-24">
+      <url type="details">https://github.com/khcrysalis/PlumeImpactor/releases/tag/v1.0.0</url>
+      <description>
+        <p>Initial release</p>
+      </description>
+    </release>
+  </releases>
+</component>
