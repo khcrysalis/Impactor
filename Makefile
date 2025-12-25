@@ -76,7 +76,7 @@ endif
 	@poetry --project "$(FLATPAK_BUILDER_TOOLS)/cargo" install
 	@poetry --project "$(FLATPAK_BUILDER_TOOLS)/cargo" run \
 		python "$(FLATPAK_BUILDER_TOOLS)/cargo/flatpak-cargo-generator.py" Cargo.lock -o package/linux/cargo-sources.json
-	@flatpak run org.flatpak.Builder/$(ARCH)/stable \
+	@flatpak run --user org.flatpak.Builder \
 		--ccache --force-clean --user --install $(FLATPAK_BUILDER_DIR) "package/linux/$(FLATPAK_BUILDER_MANIFEST)"
 	@mkdir -p dist
 	@cd package/linux; \
