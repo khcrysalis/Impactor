@@ -68,15 +68,7 @@ impl Device {
             INSTALLATION_LABEL,
         );
 
-        let mut lc = match LockdownClient::connect(&provider).await {
-            Ok(client) => client,
-            Err(err) => {
-                return Err(Error::Other(format!(
-                    "Failed to connect to device: {}",
-                    err
-                )));
-            }
-        };
+        let mut lc = LockdownClient::connect(&provider).await?;
         let id = uuid::Uuid::new_v4().to_string().to_uppercase();
         let buid = usbmuxd.get_buid().await?;
         let mut pairing_file = lc.pair(id, buid).await?;
