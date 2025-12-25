@@ -66,7 +66,7 @@ jobs:
 
       - name: Install Flatpak dependencies
         run: |
-          flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install org.freedesktop.Platform/${{ matrix.arch }}/25.08
           flatpak install org.freedesktop.Sdk/${{ matrix.arch }}/25.08
           flatpak install org.freedesktop.Sdk.Extension.llvm21/${{ matrix.arch }}/25.08
