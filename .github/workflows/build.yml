@@ -66,12 +66,13 @@ jobs:
 
       - name: Install Flatpak dependencies
         run: |
-          sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo --system
-          sudo flatpak install --system --assumeyes --noninteractive \
+          sudo flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          sudo flatpak install --user --assumeyes --noninteractive \
               org.freedesktop.Platform/${{ matrix.arch }}/25.08 \
               org.freedesktop.Sdk/${{ matrix.arch }}/25.08 \
               org.freedesktop.Sdk.Extension.llvm21/${{ matrix.arch }}/25.08 \
               org.freedesktop.Sdk.Extension.rust-stable/${{ matrix.arch }}/25.08
+              org.flatpak.Builder/${{ matrix.arch }}/stable
 
       - name: Build binaries
         run: |
