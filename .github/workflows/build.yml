@@ -4,12 +4,12 @@ on:
     branches:
       - main
     paths:
-      - 'crates/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'apps/**'
-      - 'package/**'
-      - '.github/workflows/build.yml'
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "apps/**"
+      - "package/**"
+      - ".github/workflows/build.yml"
   workflow_dispatch:
 
 env:
@@ -18,15 +18,6 @@ env:
   BUNDLE_NAME: Impactor
 
 jobs:
-  fmt:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - run: cargo fmt --all --check
-
   build-linux:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -39,40 +30,17 @@ jobs:
             arch: aarch64
     steps:
       - uses: actions/checkout@v4
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: linux-${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: linux-${{ matrix.arch }}-cargo-
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: snok/install-poetry@v1
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.14' 
+          python-version: "3.14"
 
       - name: Install and cache apt pkgs
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: flatpak flatpak-builder libglib2.0-dev libsecret-1-dev libgtk-3-dev libpng-dev libjpeg-dev libgl1-mesa-dev libglu1-mesa-dev libxkbcommon-dev libexpat1-dev libtiff-dev
           version: 1.0
-
-#      - name: Install Flatpak dependencies
-#        run: |
-#          sudo flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-#          sudo flatpak install --system --assumeyes --noninteractive \
-#              org.freedesktop.Platform//25.08 \
-#              org.freedesktop.Sdk//25.08 \
-#              org.freedesktop.Sdk.Extension.llvm21//25.08 \
-#              org.freedesktop.Sdk.Extension.rust-stable//25.08
 
       - name: Build binaries
         run: |
@@ -88,27 +56,11 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup Windows MSVC environment
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Build & Bundle (Windows)
-        run: |
-          mkdir -p dist
-          mkdir -p build/nsis
-          cargo build --workspace --bins --locked --release
-          cp target/release/${{ env.BINARY_NAME }}.exe build/nsis
-          cp target/release/${{ env.BINARY_NAME_CLI }}.exe dist/${{ env.BINARY_NAME_CLI }}-windows-x86_64.exe
-
-      - name: Create NSIS Installer
-        run: |
-          mv package/windows/* build/nsis/
-          choco install nsis.portable
-          makensis build/nsis/installer.nsi
-          mv build/nsis/PlumeInstaller.exe dist/${{ env.BUNDLE_NAME }}-windows-x86_64-setup.exe
+      - name: Build binaries
+        run: make windows PROFILE=release NSIS=1
 
       - name: Upload Bundles
         uses: actions/upload-artifact@v4
@@ -129,13 +81,9 @@ jobs:
             arch: intel
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Build (macOS ${{ matrix.arch }})
+      - name: Build binaries (${{ matrix.arch }})
         run: |
           mkdir -p build/out
           cargo build --workspace --bins --locked --release

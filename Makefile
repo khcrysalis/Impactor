@@ -19,6 +19,8 @@ SUFFIX ?= $(OS)-$(PROFILE)-$(ARCH)
 APPIMAGE ?= 0
 APPIMAGE_APPDIR ?= /tmp/AppDir
 
+NSIS ?= 0
+
 FLATPAK ?= 0
 FLATPAK_BUILDER_TOOLS ?= /tmp/flatpak-builder-tools/
 FLATPAK_BUILDER_TOOLS_COMMIT ?= 3fc0620788a1dda1a3a539b8f972edadce8260ab
@@ -33,38 +35,6 @@ clean:
 	@rm -rf ./build
 	@rm -rf ./.flatpak-builder
 	@rm -rf $(FLATPAK_BUILDER_DIR)
-# TODO: fix wxwidgets from not cross-compiling
-# TODO: fix embedding manifest in windows build
-macos:
-	@make clean
-# 	@cargo build --workspace --$(PROFILE) --target x86_64-apple-darwin
-	@cargo build --workspace --$(PROFILE) --target aarch64-apple-darwin
-
-	@mkdir -p ./dist/macos
-
-# 	@lipo -create -output ./dist/macos/plumeimpactor ./target/x86_64-apple-darwin/$(PROFILE)/plumeimpactor ./target/aarch64-apple-darwin/$(PROFILE)/plumeimpactor
-# 	@lipo -create -output ./dist/macos/plumeimpactor ./target/aarch64-apple-darwin/$(PROFILE)/plumesign ./target/aarch64-apple-darwin/$(PROFILE)/plumesign
-	@strip ./target/aarch64-apple-darwin/$(PROFILE)/plumeimpactor
-	@strip ./target/aarch64-apple-darwin/$(PROFILE)/plumesign
-	@cp ./target/aarch64-apple-darwin/$(PROFILE)/plumeimpactor ./dist/macos/plumeimpactor
-	@cp ./target/aarch64-apple-darwin/$(PROFILE)/plumesign ./dist/plumesign-macos-universal
-
-	@cp -R package/macos/Impactor.app ./dist/macos/Impactor.app
-	@mkdir -p ./dist/macos/Impactor.app/Contents/MacOS
-	@VERSION=$$(awk '/\[workspace.package\]/,/^$$/' Cargo.toml | sed -nE 's/version *= *"([^"]*)".*/\1/p'); \
-		/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $$VERSION" ./dist/macos/Impactor.app/Contents/Info.plist; \
-		/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $$VERSION" ./dist/macos/Impactor.app/Contents/Info.plist
-	@mv ./dist/macos/plumeimpactor ./dist/macos/Impactor.app/Contents/MacOS/plumeimpactor
-	@codesign --sign - --timestamp --options runtime ./dist/macos/Impactor.app
-	@ditto -c -k --sequesterRsrc --keepParent ./dist/macos/Impactor.app ./dist/Impactor-macos-universal.zip
-	@create-dmg --volname "Impactor" \
-		--background "package/macos/background.png" \
-		--window-pos 200 120 \
-		--window-size 510 350 \
-		--icon-size 100 \
-		--icon Impactor.app 160 155 \
-		--app-drop-link 360 155 \
-		./dist/Impactor-macos-universal.dmg ./dist/macos/
 
 linux:
 ifeq ($(FLATPAK),1)
@@ -103,6 +73,20 @@ ifeq ($(APPIMAGE),1)
 	@rm -rf $(APPIMAGE_APPDIR)
 endif
 
+windows:
+	@cargo build --bins --workspace --$(PROFILE)
+	@if not exist dist mkdir dist
+	@if not exist build/nsis mkdir build/nsis
+	@copy target/$(PROFILE)/plumesign.exe dist/plumesign-$(SUFFIX).exe
+	@copy target/$(PROFILE)/plumeimpactor.exe dist/Impactor-$(SUFFIX).exe
+ifeq ($(NSIS),1)
+	@copy target/$(PROFILE)/plumeimpactor.exe build/nsis/
+	@xcopy /Y package/windows/* build/nsis/
+	@makensis build/nsis/installer.nsi
+	@move /Y build/nsis/PlumeInstaller.exe dist/Impactor-$(SUFFIX)-setup.exe
+endif
+
+
 install:
 ifeq ($(OS),linux)
 ifneq ($(PREFIX),$(APPIMAGE_APPDIR)/usr)
@@ -121,9 +105,3 @@ endif
 ifeq ($(OS),darwin)
 	@cp -r ./dist/macos/Impactor.app $(PREFIX)/Impactor.app
 endif
-
-windows:
-	@cargo build --bins --workspace --$(PROFILE)
-	@mkdir -p dist
-	@cp ./target/$(PROFILE)/plumeimpactor.exe ./dist/Impactor-$(SUFFIX).exe
-	@cp ./target/$(PROFILE)/plumesign.exe ./dist/plumesign-$(SUFFIX).exe
