@@ -103,13 +103,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}-macos-slice-arm
-          path: build/slices
+          path: dist/slices
 
       - name: Get Intel Slice
         uses: actions/download-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}-macos-slice-intel
-          path: build/slices
+          path: dist/slices
 
       - name: Setup Certificates
         uses: apple-actions/import-codesign-certs@v5
@@ -123,17 +123,17 @@ jobs:
 
       - name: Create Universal Binary
         run: |
-          ls build/slices
-          make macos BIN1=build/slices/${{ env.BINARY_NAME }}-macos-arm64 BIN2=build/slices/${{ env.BINARY_NAME }}-macos-x86_64
+          ls dist/slices
+          make macos BIN1=dist/slices/${{ env.BINARY_NAME }}-macos-arm64 BIN2=dist/slices/${{ env.BINARY_NAME }}-macos-x86_64
 
       - name: Codesign
         run: |
           codesign --deep --force --options runtime \
-            --sign "${{ secrets.DEV_ID_IDENTITY_NAME }}" build/dmg/${{ env.BUNDLE_NAME }}.app
+            --sign "${{ secrets.DEV_ID_IDENTITY_NAME }}" dist/${{ env.BUNDLE_NAME }}.app
 
       - name: Create DMG
         run: |
-          mkdir -p build/out
+          mkdir -p dist/out
           create-dmg \
             --volname ${{ env.BUNDLE_NAME }} \
             --background "package/macos/background.png" \
@@ -143,15 +143,16 @@ jobs:
             --icon ${{ env.BUNDLE_NAME }}.app 160 155 \
             --hide-extension "${{ env.BUNDLE_NAME }}.app" \
             --app-drop-link 350 155 \
-            build/out/${{ env.BUNDLE_NAME }}-macos-universal.dmg build/dmg
+            dist/${{ env.BUNDLE_NAME }}-macos-universal.dmg build
 
       - name: Notarize DMG
         run: |
-          xcrun notarytool submit build/out/${{ env.BUNDLE_NAME }}-macos-universal.dmg --apple-id "${{ secrets.APPLE_ID_EMAIL }}" --password "${{ secrets.APPLE_ID_PASSWORD }}" --team-id "${{ secrets.APPLE_ID_TEAM }}" --wait
-          xcrun stapler staple build/out/${{ env.BUNDLE_NAME }}-macos-universal.dmg
+          xcrun notarytool submit dist/${{ env.BUNDLE_NAME }}-macos-universal.dmg --apple-id "${{ secrets.APPLE_ID_EMAIL }}" --password "${{ secrets.APPLE_ID_PASSWORD }}" --team-id "${{ secrets.APPLE_ID_TEAM }}" --wait
+          xcrun stapler staple dist/${{ env.BUNDLE_NAME }}-macos-universal.dmg
 
       - name: Upload Universal DMG
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}-macos-universal
-          path: build/out/*
+          path: |
+            dist/${{ env.BUNDLE_NAME }}-macos-universal.dmg
