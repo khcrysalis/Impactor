@@ -85,18 +85,13 @@ jobs:
 
       - name: Build binaries (${{ matrix.arch }})
         run: |
-          mkdir -p build/out
-          cargo build --workspace --bins --locked --release
-          strip target/release/${{ env.BINARY_NAME }}
-          strip target/release/${{ env.BINARY_NAME_CLI }}
-          cp target/release/${{ env.BINARY_NAME }} build/out/${{ env.BINARY_NAME }}-${{ matrix.arch }}
-          cp target/release/${{ env.BINARY_NAME_CLI }} build/out/${{ env.BINARY_NAME_CLI }}-macos-${{ matrix.arch }}
+          make macos PROFILE=release
 
       - name: Upload ${{ matrix.arch }} Slice
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}-macos-slice-${{ matrix.arch }}
-          path: build/out/*
+          path: dist/*
 
   build-macos-universal:
     runs-on: macos-latest
@@ -128,20 +123,8 @@ jobs:
 
       - name: Create Universal Binary
         run: |
-          mkdir -p build/universal
-          lipo -create -output build/universal/${{ env.BINARY_NAME }} build/slices/${{ env.BINARY_NAME }}-arm build/slices/${{ env.BINARY_NAME }}-intel
-          chmod +x build/universal/${{ env.BINARY_NAME }}
-          vtool -arch x86_64 -arch arm64 -set-build-version 1 10.12 26.0 -output build/universal/${{ env.BINARY_NAME }} build/universal/${{ env.BINARY_NAME }}
-
-      - name: Bundle
-        run: |
-          mkdir -p build/dmg
-          cp -R package/macos/${{ env.BUNDLE_NAME }}.app build/dmg/${{ env.BUNDLE_NAME }}.app
-          mkdir -p build/dmg/${{ env.BUNDLE_NAME }}.app/Contents/MacOS
-          mv build/universal/${{ env.BINARY_NAME }} build/dmg/${{ env.BUNDLE_NAME }}.app/Contents/MacOS/${{ env.BINARY_NAME }}
-          VERSION=$(awk '/\[workspace.package\]/,/^$/' Cargo.toml | sed -nE 's/version *= *"([^"]*)".*/\1/p')
-          plutil -replace CFBundleShortVersionString -string "$VERSION" build/dmg/${{ env.BUNDLE_NAME }}.app/Contents/Info.plist
-          plutil -replace CFBundleVersion -string "$VERSION" build/dmg/${{ env.BUNDLE_NAME }}.app/Contents/Info.plist
+          ls build/slices
+          make macos BIN1=build/slices/${{ env.BINARY_NAME }}-macos-arm64 BIN2=build/slices/${{ env.BINARY_NAME }}-macos-x86_64
 
       - name: Codesign
         run: |

@@ -9,12 +9,16 @@ ifeq ($(shell uname -s),Linux)
 OS := linux
 endif
 ifeq ($(shell uname -s),Darwin)
-OS := darwin
+OS := macos
 endif
 endif
 PROFILE ?= debug
 PREFIX ?= /usr/local
-SUFFIX ?= $(OS)-$(PROFILE)-$(ARCH)
+SUFFIX ?= $(OS)-$(ARCH)
+
+BUNDLE ?= 0
+BIN1 ?=
+BIN2 ?=
 
 APPIMAGE ?= 0
 APPIMAGE_APPDIR ?= /tmp/AppDir
@@ -35,6 +39,27 @@ clean:
 	@rm -rf ./build
 	@rm -rf ./.flatpak-builder
 	@rm -rf $(FLATPAK_BUILDER_DIR)
+
+macos:
+	@mkdir -p dist
+ifeq ($(and $(BIN1),$(BIN2)),)
+	@cargo build --bins --workspace --$(PROFILE)
+	@cp target/$(PROFILE)/plumeimpactor dist/plumeimpactor-$(SUFFIX)
+	@cp target/$(PROFILE)/plumesign dist/plumesign-$(SUFFIX)
+else
+	ARCH=universal
+	@name=$$(basename $(BIN1)); \
+	name=$${name%-*}; \
+	lipo -create -output dist/$${name}-$(SUFFIX) $(BIN1) $(BIN2)
+endif
+ifeq ($(BUNDLE),1)
+	@cp -R package/macos/Impactor.app dist/Impactor.app
+	@vtool -arch x86_64 -arch arm64 -set-build-version 1 10.12 26.0 -output dist/plumeimpactor-$(SUFFIX) dist/plumeimpactor-$(SUFFIX)
+	@cp dist/plumeimpactor-$(SUFFIX) dist/Impactor.app/Contents/MacOS/Impactor
+	@VERSION=$$(awk '/\[workspace.package\]/,/^$$/' Cargo.toml | sed -nE 's/version *= *"([^"]*)".*/\1/p'); \
+		/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $$VERSION" ./dist/Impactor.app/Contents/Info.plist; \
+		/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $$VERSION" ./dist/Impactor.app/Contents/Info.plist
+endif
 
 linux:
 ifeq ($(FLATPAK),1)
@@ -75,17 +100,16 @@ endif
 
 windows:
 	@cargo build --bins --workspace --$(PROFILE)
-	@if not exist dist mkdir dist
-	@if not exist build/nsis mkdir build/nsis
-	@copy target/$(PROFILE)/plumesign.exe dist/plumesign-$(SUFFIX).exe
-	@copy target/$(PROFILE)/plumeimpactor.exe dist/Impactor-$(SUFFIX).exe
+	@mkdir -p dist
+	@mkdir -p build/nsis
+	@cp target/$(PROFILE)/plumesign.exe dist/plumesign-$(SUFFIX).exe
+	@cp target/$(PROFILE)/plumeimpactor.exe dist/Impactor-$(SUFFIX).exe
 ifeq ($(NSIS),1)
-	@copy target/$(PROFILE)/plumeimpactor.exe build/nsis/
-	@xcopy /Y package/windows/* build/nsis/
+	@cp target/$(PROFILE)/plumeimpactor.exe build/nsis/
+	@cp -r package/windows/* build/nsis/
 	@makensis build/nsis/installer.nsi
-	@move /Y build/nsis/PlumeInstaller.exe dist/Impactor-$(SUFFIX)-setup.exe
+	@mv build/nsis/installer.exe dist/Impactor-$(SUFFIX)-setup.exe
 endif
-
 
 install:
 ifeq ($(OS),linux)

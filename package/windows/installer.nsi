@@ -9,7 +9,7 @@
 Name "${APPNAME}"
 BrandingText "${APPNAME} Setup"
 
-OutFile "PlumeInstaller.exe"
+OutFile "installer.exe"
 
 RequestExecutionLevel admin
 InstallDir "$PROGRAMFILES64\${APPNAME}"
