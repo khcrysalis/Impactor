@@ -126,7 +126,7 @@ jobs:
       - name: Create Universal Binary
         run: |
           ls dist/slices
-          make macos BIN1=dist/slices/${{ env.BINARY_NAME }}-macos-arm64 BIN2=dist/slices/${{ env.BINARY_NAME }}-macos-x86_64
+          make macos BIN1=dist/slices/${{ env.BINARY_NAME }}-macos-arm64 BIN2=dist/slices/${{ env.BINARY_NAME }}-macos-x86_64 BUNDLE=1
 
       - name: Codesign
         run: |
