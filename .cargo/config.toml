@@ -1,0 +1,19 @@
+[target.x86_64-apple-darwin]
+rustflags = [
+    "-C",
+    "link-arg=-mmacosx-version-min=10.13",
+    "-C",
+    "link-arg=-static-libstdc++",
+    "-C",
+    "link-arg=-static-libgcc",
+]
+
+[target.aarch64-apple-darwin]
+rustflags = [
+    "-C",
+    "link-arg=-mmacosx-version-min=10.13",
+    "-C",
+    "link-arg=-static-libstdc++",
+    "-C",
+    "link-arg=-static-libgcc",
+]
