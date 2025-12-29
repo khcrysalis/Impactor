@@ -50,12 +50,13 @@ else
 	@name=$$(basename $(BIN1)); \
 	name=$${name%-$(OS)-*}; \
 	lipo -create -output dist/$${name}-$(SUFFIX) $(BIN1) $(BIN2)
-	chmod +x dist/$${name}-$(SUFFIX)
 endif
 ifeq ($(BUNDLE),1)
 	@cp -R package/macos/Impactor.app dist/Impactor.app
 	@vtool -arch x86_64 -arch arm64 -set-build-version 1 10.12 26.0 -output dist/plumeimpactor-$(SUFFIX) dist/plumeimpactor-$(SUFFIX)
 	@cp dist/plumeimpactor-$(SUFFIX) dist/Impactor.app/Contents/MacOS/Impactor
+	@chmod +x dist/Impactor.app/Contents/MacOS/Impactor
+	@strip dist/Impactor.app/Contents/MacOS/Impactor
 	@VERSION=$$(awk '/\[workspace.package\]/,/^$$/' Cargo.toml | sed -nE 's/version *= *"([^"]*)".*/\1/p'); \
 		/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $$VERSION" ./dist/Impactor.app/Contents/Info.plist; \
 		/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $$VERSION" ./dist/Impactor.app/Contents/Info.plist
