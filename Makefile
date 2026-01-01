@@ -126,6 +126,7 @@ endif
 	@install -Dm644 package/linux/icons/hicolor/64x64/apps/$(ID).png $(PREFIX)/share/icons/hicolor/64x64/apps/$(ID).png
 	@install -Dm644 package/linux/icons/hicolor/128x128/apps/$(ID).png $(PREFIX)/share/icons/hicolor/128x128/apps/$(ID).png
 	@install -Dm644 package/linux/icons/hicolor/256x256/apps/$(ID).png $(PREFIX)/share/icons/hicolor/256x256/apps/$(ID).png
+	@install -Dm644 package/linux/icons/hicolor/512x512/apps/$(ID).png $(PREFIX)/share/icons/hicolor/512x512/apps/$(ID).png
 endif
 ifeq ($(OS),darwin)
 	@cp -r ./dist/Impactor.app $(PREFIX)/Impactor.app
