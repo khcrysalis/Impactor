@@ -11,7 +11,9 @@ use idevice::{
 };
 
 use plume_shared::get_data_path;
-use plume_utils::{Device, Package, Signer, SignerInstallMode, SignerMode, get_device_for_id};
+use plume_utils::{
+    Device, Package, PlistInfoTrait, Signer, SignerInstallMode, SignerMode, get_device_for_id,
+};
 
 use futures::StreamExt;
 use tokio::{runtime::Builder, sync::mpsc};
@@ -652,6 +654,13 @@ impl PlumeFrame {
                                     .await
                                     .map_err(|e| format!("Failed to modify bundle: {}", e))?;
 
+                                signer_settings.custom_identifier =
+                                    signer.options.custom_identifier.clone();
+                                if signer_settings.custom_identifier.is_none() {
+                                    signer_settings.custom_identifier =
+                                        bundle.get_bundle_identifier();
+                                }
+
                                 sender_clone
                                     .send(PlumeFrameMessage::WorkUpdated(
                                         "Registering bundle...".into(),
@@ -696,6 +705,13 @@ impl PlumeFrame {
                                     .modify_bundle(&bundle, &None)
                                     .await
                                     .map_err(|e| format!("Failed to modify bundle: {}", e))?;
+
+                                signer_settings.custom_identifier =
+                                    signer.options.custom_identifier.clone();
+                                if signer_settings.custom_identifier.is_none() {
+                                    signer_settings.custom_identifier =
+                                        bundle.get_bundle_identifier();
+                                }
 
                                 sender_clone
                                     .send(PlumeFrameMessage::WorkUpdated(
