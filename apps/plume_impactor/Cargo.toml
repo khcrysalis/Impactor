@@ -1,0 +1,27 @@
+[package]
+name = "plume_impactor"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+env_logger.workspace = true
+tokio.workspace = true
+plume_core = { path = "../../crates/core" }
+plume_utils = { path = "../../crates/types" }
+plume_shared = { path = "../../crates/shared" }
+
+egui = "0.33.3"
+eframe = { version = "0.32", default-features = false, features = [
+    "default_fonts",
+    "wgpu",
+    "glow",
+    "wayland",
+    "x11",
+] }
+wgpu = { version = "25", features = ["dx12", "vulkan", "metal", "gles"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+gestalt = { path = "../../crates/gestalt" }
