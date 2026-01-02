@@ -7,8 +7,13 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-env_logger.workspace = true
+idevice.workspace = true
 tokio.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+plist.workspace = true
+futures.workspace = true
+env_logger.workspace = true
 plume_core = { path = "../../crates/core" }
 plume_utils = { path = "../../crates/types" }
 plume_shared = { path = "../../crates/shared" }
@@ -22,6 +27,6 @@ eframe = { version = "0.32", default-features = false, features = [
     "x11",
 ] }
 wgpu = { version = "25", features = ["dx12", "vulkan", "metal", "gles"] }
-
+image = "0.25.9"
 [target.'cfg(target_os = "macos")'.dependencies]
 gestalt = { path = "../../crates/gestalt" }
