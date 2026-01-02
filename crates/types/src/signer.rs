@@ -93,6 +93,11 @@ impl Signer {
                 if let (Some(p12_data), Some(serial_number)) =
                     (&cert_identity.p12_data, &cert_identity.serial_number)
                 {
+                    let bundles = bundle
+                        .collect_bundles_sorted()?
+                        .into_iter()
+                        .collect::<Vec<_>>();
+
                     match self.options.app {
                         SignerApp::LiveContainerAndSideStore => {
                             if let Some(embedded_bundle) = bundles
