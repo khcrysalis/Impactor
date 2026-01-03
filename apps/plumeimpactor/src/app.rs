@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, sync::mpsc as std_mpsc};
 
 use eframe::egui;
 use eframe::epaint::ColorImage;
@@ -15,6 +15,7 @@ use tray_icon::{
 };
 
 use crate::listeners::spawn_package_handler;
+use crate::login::LoginUi;
 
 // -----------------------------------------------------------------------------
 // App
@@ -34,6 +35,8 @@ pub(crate) struct ImpactorApp {
     pub(crate) tray_icon: Rc<RefCell<Option<TrayIcon>>>,
     pub(crate) tray_menu_dirty: bool,
     pub(crate) show_settings: bool,
+    pub(crate) sender: Option<mpsc::UnboundedSender<AppMessage>>,
+    pub(crate) login_ui: LoginUi,
 }
 
 impl Default for ImpactorApp {
@@ -52,6 +55,8 @@ impl Default for ImpactorApp {
             tray_icon: Rc::new(RefCell::new(None)),
             tray_menu_dirty: true,
             show_settings: false,
+            sender: None,
+            login_ui: LoginUi::default(),
         }
     }
 }
@@ -149,6 +154,8 @@ impl eframe::App for ImpactorApp {
                 ui_settings(ui, self);
             }
         });
+
+        crate::login::ui_login(ctx, &mut self.login_ui, self.sender.as_ref());
 
         ctx.request_repaint();
     }
@@ -559,7 +566,7 @@ fn ui_settings(ui: &mut egui::Ui, app: &mut ImpactorApp) {
         ui.add_space(8.0);
 
         if ui.button("Add Account").clicked() {
-            // trigger auth flow
+            app.login_ui.open();
         }
 
         ui.add_space(8.0);
@@ -596,6 +603,8 @@ pub(crate) enum AppMessage {
     AccountAdded(GsaAccount),
     AccountRemoved(usize),
     AccountSelected(usize),
+    LoginNeedsTwoFactor(std_mpsc::Sender<Result<String, String>>),
+    LoginFailed(String),
 }
 
 impl ImpactorApp {
@@ -665,6 +674,7 @@ impl ImpactorApp {
                 };
 
                 _ = store.accounts_add_sync(account);
+                self.login_ui.success();
             }
             AppMessage::AccountRemoved(index) => {
                 let Some(store) = &mut self.store else {
@@ -685,6 +695,12 @@ impl ImpactorApp {
                 if let Some(email) = accounts.get(index).cloned() {
                     _ = store.account_select_sync(&&email);
                 }
+            }
+            AppMessage::LoginNeedsTwoFactor(tx) => {
+                self.login_ui.request_two_factor(tx);
+            }
+            AppMessage::LoginFailed(error) => {
+                self.login_ui.fail(error);
             }
         }
     }

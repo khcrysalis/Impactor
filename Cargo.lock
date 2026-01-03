@@ -5307,6 +5307,7 @@ dependencies = [
  "plume_shared",
  "plume_utils",
  "rfd",
+ "rustls 0.23.32",
  "thiserror 2.0.17",
  "tokio",
  "tray-icon",

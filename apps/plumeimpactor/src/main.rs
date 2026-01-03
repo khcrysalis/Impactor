@@ -23,6 +23,9 @@ fn load_tray_icon() -> Icon {
 #[tokio::main]
 async fn main() -> eframe::Result<()> {
     env_logger::init();
+    _ = rustls::crypto::ring::default_provider()
+        .install_default()
+        .unwrap();
 
     #[cfg(target_os = "linux")]
     {
@@ -58,6 +61,7 @@ async fn main() -> eframe::Result<()> {
             Ok(Box::new(app::ImpactorApp {
                 receiver: Some(rx),
                 tray_icon: tray.clone(),
+                sender: Some(tx),
                 ..Default::default()
             }))
         }),
