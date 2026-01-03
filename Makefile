@@ -88,11 +88,34 @@ ifeq ($(APPIMAGE),1)
 	@wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-$(ARCH).AppImage -O /tmp/linuxdeploy.appimage
 	@chmod +x /tmp/linuxdeploy.appimage
 	@make install PREFIX=$(APPIMAGE_APPDIR)/usr
-	@NO_STRIP=true \
+	@lib_args=""; \
+		for lib in \
+			libayatana-appindicator3.so.1 \
+			libappindicator3.so.1 \
+			libayatana-ido3-0.4.so.0 \
+			libdbusmenu-glib.so.4 \
+			libdbusmenu-gtk3.so.4; do \
+			path=""; \
+			if command -v ldconfig >/dev/null 2>&1; then \
+				path=$$(ldconfig -p 2>/dev/null | awk -v lib="$$lib" '$$1==lib {print $$NF; exit}'); \
+			fi; \
+			if [ -z "$$path" ]; then \
+				for dir in /usr/lib /usr/lib64 /lib /lib64 /usr/lib/$(ARCH)-linux-gnu /usr/lib/x86_64-linux-gnu; do \
+					if [ -e "$$dir/$$lib" ]; then path="$$dir/$$lib"; break; fi; \
+				done; \
+			fi; \
+			if [ -n "$$path" ]; then \
+				lib_args="$$lib_args --library $$path"; \
+			elif [ "$$lib" = "libayatana-appindicator3.so.1" ] || [ "$$lib" = "libappindicator3.so.1" ]; then \
+				echo "warning: $$lib not found; AppImage tray icon may fail to load"; \
+			fi; \
+		done; \
+		NO_STRIP=true \
 		/tmp/linuxdeploy.appimage --appimage-extract-and-run \
 			--appdir $(APPIMAGE_APPDIR) \
 			--executable target/$(PROFILE)/plumeimpactor \
 			--desktop-file package/linux/$(ID).desktop \
+			$$lib_args \
 			--output appimage
 	@rm /tmp/linuxdeploy.appimage
 	@mv Plume_Impactor-$(ARCH).AppImage dist/Impactor-$(SUFFIX).appimage
