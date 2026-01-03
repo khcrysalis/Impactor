@@ -44,7 +44,7 @@ macos:
 	@mkdir -p dist
 ifeq ($(and $(BIN1),$(BIN2)),)
 	@cargo build --bins --workspace --$(PROFILE)
-	@cp target/$(PROFILE)/plumeimpactor dist/plumeimpactor-$(SUFFIX)
+	@cp target/$(PROFILE)/plume_impactor dist/plume_impactor-$(SUFFIX)
 	@cp target/$(PROFILE)/plumesign dist/plumesign-$(SUFFIX)
 else
 	@name=$$(basename $(BIN1)); \
@@ -53,8 +53,8 @@ else
 endif
 ifeq ($(BUNDLE),1)
 	@cp -R package/macos/Impactor.app dist/Impactor.app
-	@vtool -arch x86_64 -arch arm64 -set-build-version 1 10.12 26.0 -output dist/plumeimpactor-$(SUFFIX) dist/plumeimpactor-$(SUFFIX)
-	@cp dist/plumeimpactor-$(SUFFIX) dist/Impactor.app/Contents/MacOS/Impactor
+	@vtool -arch x86_64 -arch arm64 -set-build-version 1 10.12 26.0 -output dist/plume_impactor-$(SUFFIX) dist/plume_impactor-$(SUFFIX)
+	@cp dist/plume_impactor-$(SUFFIX) dist/Impactor.app/Contents/MacOS/Impactor
 	@chmod +x dist/Impactor.app/Contents/MacOS/Impactor
 	@strip dist/Impactor.app/Contents/MacOS/Impactor
 	@VERSION=$$(awk '/\[workspace.package\]/,/^$$/' Cargo.toml | sed -nE 's/version *= *"([^"]*)".*/\1/p'); \
@@ -81,7 +81,7 @@ endif
 endif
 	@cargo build --bins --workspace --$(PROFILE)
 	@mkdir -p dist
-	@cp target/$(PROFILE)/plumeimpactor ./dist/Impactor-$(SUFFIX)
+	@cp target/$(PROFILE)/plume_impactor ./dist/Impactor-$(SUFFIX)
 	@cp target/$(PROFILE)/plumesign ./dist/plumesign-$(SUFFIX)
 	@strip dist/Impactor-$(SUFFIX)
 ifeq ($(APPIMAGE),1)
@@ -91,7 +91,7 @@ ifeq ($(APPIMAGE),1)
 	@NO_STRIP=true \
 		/tmp/linuxdeploy.appimage --appimage-extract-and-run \
 			--appdir $(APPIMAGE_APPDIR) \
-			--executable target/$(PROFILE)/plumeimpactor \
+			--executable target/$(PROFILE)/plume_impactor \
 			--desktop-file package/linux/$(ID).desktop \
 			--output appimage
 	@rm /tmp/linuxdeploy.appimage
@@ -104,9 +104,9 @@ windows:
 	@mkdir -p dist
 	@mkdir -p dist/nsis
 	@cp target/$(PROFILE)/plumesign.exe dist/plumesign-$(SUFFIX).exe
-	@cp target/$(PROFILE)/plumeimpactor.exe dist/Impactor-$(SUFFIX)-portable.exe
+	@cp target/$(PROFILE)/plume_impactor.exe dist/Impactor-$(SUFFIX)-portable.exe
 ifeq ($(NSIS),1)
-	@cp target/$(PROFILE)/plumeimpactor.exe dist/nsis/
+	@cp target/$(PROFILE)/plume_impactor.exe dist/nsis/
 	@cp -r package/windows/* dist/nsis/
 	@makensis dist/nsis/installer.nsi
 	@mv dist/nsis/installer.exe dist/Impactor-$(SUFFIX)-setup.exe
@@ -116,7 +116,7 @@ install:
 ifeq ($(OS),linux)
 ifneq ($(PREFIX),$(APPIMAGE_APPDIR)/usr)
 	@install -Dm755 target/$(PROFILE)/plumesign $(PREFIX)/bin/plumesign
-	@install -Dm755 target/$(PROFILE)/plumeimpactor $(PREFIX)/bin/plumeimpactor
+	@install -Dm755 target/$(PROFILE)/plume_impactor $(PREFIX)/bin/plume_impactor
 endif
 	@install -Dm644 package/linux/$(ID).desktop $(PREFIX)/share/applications/$(ID).desktop
 	@install -Dm644 package/linux/$(ID).metainfo.xml $(PREFIX)/share/metainfo/$(ID).metainfo.xml
