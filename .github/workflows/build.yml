@@ -31,6 +31,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Use Wild linker
+        uses: davidlattimore/wild-action@latest
       - uses: snok/install-poetry@v1
       - uses: actions/setup-python@v6
         with:
