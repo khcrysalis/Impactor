@@ -380,53 +380,56 @@ fn ui_package_settings(ui: &mut egui::Ui, app: &mut ImpactorApp, pkg: &Package) 
                     "Force Liquid Glass (26+)",
                 );
 
-                ui.horizontal(|ui| {
-                    ui.label("Mode:");
-                    egui::ComboBox::from_id_salt("install_mode")
-                        .selected_text(match app.selected_settings.install_mode {
-                            SignerInstallMode::Install => "Install",
-                            SignerInstallMode::Export => "Export",
-                        })
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut app.selected_settings.install_mode,
-                                SignerInstallMode::Install,
-                                "Install",
-                            );
-                            ui.selectable_value(
-                                &mut app.selected_settings.install_mode,
-                                SignerInstallMode::Export,
-                                "Export",
-                            );
-                        });
-                });
+                egui::Grid::new("settings_dropdowns")
+                    .num_columns(2)
+                    .spacing([8.0, 4.0])
+                    .show(ui, |ui| {
+                        ui.label("Mode:");
+                        egui::ComboBox::from_id_salt("install_mode")
+                            .selected_text(match app.selected_settings.install_mode {
+                                SignerInstallMode::Install => "Install",
+                                SignerInstallMode::Export => "Export",
+                            })
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(
+                                    &mut app.selected_settings.install_mode,
+                                    SignerInstallMode::Install,
+                                    "Install",
+                                );
+                                ui.selectable_value(
+                                    &mut app.selected_settings.install_mode,
+                                    SignerInstallMode::Export,
+                                    "Export",
+                                );
+                            });
+                        ui.end_row();
 
-                ui.horizontal(|ui| {
-                    ui.label("Signing:");
-                    egui::ComboBox::from_id_salt("signing_mode")
-                        .selected_text(match app.selected_settings.mode {
-                            SignerMode::Pem => "Apple ID",
-                            SignerMode::Adhoc => "Adhoc",
-                            SignerMode::None => "Modify",
-                        })
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut app.selected_settings.mode,
-                                SignerMode::Pem,
-                                "Apple ID",
-                            );
-                            ui.selectable_value(
-                                &mut app.selected_settings.mode,
-                                SignerMode::Adhoc,
-                                "Adhoc",
-                            );
-                            ui.selectable_value(
-                                &mut app.selected_settings.mode,
-                                SignerMode::None,
-                                "Modify",
-                            );
-                        });
-                });
+                        ui.label("Signing:");
+                        egui::ComboBox::from_id_salt("signing_mode")
+                            .selected_text(match app.selected_settings.mode {
+                                SignerMode::Pem => "Apple ID",
+                                SignerMode::Adhoc => "Adhoc",
+                                SignerMode::None => "Modify",
+                            })
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(
+                                    &mut app.selected_settings.mode,
+                                    SignerMode::Pem,
+                                    "Apple ID",
+                                );
+                                ui.selectable_value(
+                                    &mut app.selected_settings.mode,
+                                    SignerMode::Adhoc,
+                                    "Adhoc",
+                                );
+                                ui.selectable_value(
+                                    &mut app.selected_settings.mode,
+                                    SignerMode::None,
+                                    "Modify",
+                                );
+                            });
+                        ui.end_row();
+                    });
             });
         });
 
