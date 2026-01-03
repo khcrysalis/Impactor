@@ -66,6 +66,11 @@ fn load_embedded_install_image() -> Result<ColorImage, String> {
 
 impl eframe::App for ImpactorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        #[cfg(target_os = "linux")]
+        {
+            while gtk::glib::MainContext::default().iteration(false) {}
+        }
+
         // ---------------- Tray events ----------------
         if let Ok(event) = TrayIconEvent::receiver().try_recv() {
             if let TrayIconEvent::Click { id, .. } = event {

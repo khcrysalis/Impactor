@@ -15,6 +15,11 @@ pub const APP_NAME: &str = concat!("Impactor – Version ", env!("CARGO_PKG_VERS
 async fn main() -> eframe::Result<()> {
     env_logger::init();
 
+    #[cfg(target_os = "linux")]
+    {
+        gtk::init().expect("GTK init failed");
+    }
+
     let (tx, rx) = mpsc::unbounded_channel();
     listeners::spawn_usbmuxd_listener(tx.clone());
     listeners::spawn_store_handler(tx.clone());
@@ -27,24 +32,18 @@ async fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
-    // TODO: linux tray
-
-    #[cfg(not(target_os = "linux"))]
     let tray = Rc::new(RefCell::new(None::<TrayIcon>));
 
     eframe::run_native(
         APP_NAME,
         options,
         Box::new(|_| {
-            #[cfg(not(target_os = "linux"))]
-            {
-                tray.borrow_mut().replace(
-                    TrayIconBuilder::new()
-                        .with_tooltip(APP_NAME)
-                        .build()
-                        .unwrap(),
-                );
-            }
+            tray.borrow_mut().replace(
+                TrayIconBuilder::new()
+                    .with_tooltip(APP_NAME)
+                    .build()
+                    .unwrap(),
+            );
 
             Ok(Box::new(app::ImpactorApp {
                 receiver: Some(rx),

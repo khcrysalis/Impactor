@@ -250,3 +250,8 @@ pub async fn install_app_mac(app_path: &PathBuf) -> Result<(), Error> {
 
     Ok(())
 }
+
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+pub async fn install_app_mac(_app_path: &PathBuf) -> Result<(), Error> {
+    Ok(())
+}
