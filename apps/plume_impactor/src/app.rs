@@ -562,8 +562,8 @@ fn ui_settings(ui: &mut egui::Ui, app: &mut ImpactorApp) {
 
     ui.add_space(ui.available_size().y - 18.0);
 
-    ui.horizontal(|ui| {
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+    ui.with_layout(egui::Layout::bottom_up(egui::Align::Max), |ui| {
+        ui.horizontal(|ui| {
             if ui.button("Back").clicked() {
                 app.show_settings = false;
             }
