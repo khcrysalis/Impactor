@@ -27,6 +27,14 @@ async fn main() -> eframe::Result<()> {
         .install_default()
         .unwrap();
 
+    if std::env::var_os("APPIMAGE").is_some() {
+        // AppImage defaults to Wayland on many distros; force X11 so drag-and-drop works.
+        unsafe {
+            std::env::remove_var("WAYLAND_DISPLAY");
+            std::env::remove_var("WAYLAND_SOCKET");
+        }
+    }
+
     #[cfg(target_os = "linux")]
     {
         gtk::init().expect("GTK init failed");
