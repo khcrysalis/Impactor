@@ -81,12 +81,12 @@ impl eframe::App for ImpactorApp {
         }
 
         // ---------------- Tray events ----------------
-        if let Ok(event) = MenuEvent::receiver().try_recv() {
+        while let Ok(event) = MenuEvent::receiver().try_recv() {
+            println!("Tray menu event: {:?}", event.id);
             match event.id.as_ref() {
                 "open" => {
                     ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
                 }
-                #[cfg(target_os = "linux")]
                 "quit" => std::process::exit(0),
                 _ => {}
             }
@@ -209,10 +209,8 @@ fn build_tray_menu(app: &ImpactorApp) -> Menu {
         menu.append(&devices_submenu).unwrap();
     }
     menu.append(&PredefinedMenuItem::separator()).unwrap();
-    #[cfg(target_os = "linux")]
     menu.append(&MenuItem::with_id("quit", "Quit", true, None))
         .unwrap();
-    menu.append(&PredefinedMenuItem::quit(None)).unwrap();
 
     menu
 }

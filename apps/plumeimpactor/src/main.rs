@@ -73,13 +73,7 @@ async fn main() -> eframe::Result<()> {
         APP_NAME,
         options,
         Box::new(|_| {
-            tray.borrow_mut().replace(
-                TrayIconBuilder::new()
-                    .with_tooltip(APP_NAME)
-                    .with_icon(load_tray_icon())
-                    .build()
-                    .unwrap(),
-            );
+            setup_tray(&tray);
 
             Ok(Box::new(app::ImpactorApp {
                 receiver: Some(rx),
@@ -89,4 +83,16 @@ async fn main() -> eframe::Result<()> {
             }))
         }),
     )
+}
+
+fn setup_tray(tray: &Rc<RefCell<Option<TrayIcon>>>) {
+    let icon = load_tray_icon();
+
+    let tray_icon = TrayIconBuilder::new()
+        .with_icon(icon)
+        .with_tooltip(APP_NAME)
+        .build()
+        .unwrap();
+
+    tray.borrow_mut().replace(tray_icon);
 }
