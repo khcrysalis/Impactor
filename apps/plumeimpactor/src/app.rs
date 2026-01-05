@@ -13,7 +13,9 @@ use tray_icon::{
     menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu},
 };
 
-use crate::listeners::{spawn_certificate_export_handler, spawn_package_handler};
+use crate::listeners::{
+    spawn_certificate_export_handler, spawn_package_handler, spawn_pair_handler,
+};
 use crate::login::LoginUi;
 
 #[cfg(target_os = "windows")]
@@ -161,6 +163,17 @@ impl eframe::App for ImpactorApp {
                                 );
                             }
                         });
+
+                    if let Some(device_id) = self.selected_device {
+                        if ui.button("Pair").clicked() {
+                            let selected_device = self
+                                .devices
+                                .iter()
+                                .find(|d| Some(d.device_id) == Some(device_id));
+
+                            spawn_pair_handler(selected_device.cloned());
+                        }
+                    }
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("⚙ Settings").clicked() {
