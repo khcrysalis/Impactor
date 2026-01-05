@@ -143,6 +143,17 @@ impl eframe::App for ImpactorApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             if !self.show_settings {
                 ui.horizontal(|ui| {
+                    if ui.button(" + ").clicked() {
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("IPA files", &["ipa", "tipa"])
+                            .pick_file()
+                        {
+                            self.handle_message(AppMessage::PackageSelected(
+                                path.display().to_string(),
+                            ));
+                        }
+                    }
+
                     egui::ComboBox::from_id_salt("device_picker")
                         .selected_text(
                             self.selected_device
