@@ -39,7 +39,7 @@ pub(crate) fn spawn_usbmuxd_listener(sender: mpsc::UnboundedSender<AppMessage>) 
         rt.block_on(async move {
             #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
             {
-                if let Some(mac_udid) = gestalt::get_udid() {
+                if let Some(mac_udid) = plume_gestalt::get_udid() {
                     sender
                         .send(AppMessage::DeviceConnected(Device {
                             name: "This Mac".into(),

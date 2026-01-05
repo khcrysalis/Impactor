@@ -1,5 +1,5 @@
 [package]
-name = "gestalt"
+name = "plume_gestalt"
 description = "MobileGestalt.dylib wrapper for Rust, primarily for retrieving the Mac UDID."
 edition.workspace = true
 version.workspace = true

@@ -2731,10 +2731,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gestalt"
-version = "1.4.0"
-
-[[package]]
 name = "gethostname"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5256,6 +5252,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "plume_gestalt"
+version = "1.4.0"
+
+[[package]]
 name = "plume_shared"
 version = "1.4.0"
 
@@ -5284,12 +5284,12 @@ dependencies = [
  "egui",
  "env_logger",
  "futures",
- "gestalt",
  "gtk",
  "idevice",
  "image",
  "plist",
  "plume_core",
+ "plume_gestalt",
  "plume_shared",
  "plume_utils",
  "raw-window-handle",
@@ -5313,12 +5313,12 @@ dependencies = [
  "dialoguer 0.12.0",
  "env_logger",
  "futures",
- "gestalt",
  "goblin",
  "idevice",
  "log",
  "plist",
  "plume_core",
+ "plume_gestalt",
  "plume_shared",
  "plume_utils",
  "rustls 0.23.32",

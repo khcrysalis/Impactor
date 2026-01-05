@@ -13,9 +13,9 @@ tokio.workspace = true
 futures.workspace = true
 env_logger.workspace = true
 log.workspace = true
-plume_core = { path = "../../crates/core" }
-plume_utils = { path = "../../crates/types" }
-plume_shared = { path = "../../crates/shared" }
+plume_core = { path = "../../crates/plume_core" }
+plume_utils = { path = "../../crates/plume_types" }
+plume_shared = { path = "../../crates/plume_shared" }
 
 rustls = { version = "0.23.32", features = ["ring"] }
 
@@ -25,4 +25,4 @@ anyhow = "1.0"
 goblin = "0.9.3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-gestalt = { path = "../../crates/gestalt" }
+plume_gestalt = { path = "../../crates/plume_gestalt" }

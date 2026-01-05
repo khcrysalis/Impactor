@@ -3,10 +3,10 @@ resolver = "3"
 members = [
     "apps/plumeimpactor",
     "apps/plumesign",
-    "crates/core",
-    "crates/gestalt",
-    "crates/shared",
-    "crates/types",
+    "crates/plume_core",
+    "crates/plume_gestalt",
+    "crates/plume_shared",
+    "crates/plume_types",
 ]
 
 [workspace.package]
