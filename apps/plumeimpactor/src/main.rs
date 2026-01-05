@@ -1,42 +1,23 @@
-#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
 mod listeners;
 mod login;
+mod tray;
 
-#[cfg(target_os = "windows")]
-use std::sync::{
-    Arc,
-    atomic::{AtomicIsize, Ordering},
-};
 use std::{
     cell::RefCell,
     env, fs,
     path::{Path, PathBuf},
     rc::Rc,
-    sync::mpsc as std_mpsc,
 };
 
 use eframe::NativeOptions;
 use eframe::egui;
 use tokio::sync::mpsc;
-use tray_icon::{Icon, TrayIcon, TrayIconBuilder, menu::MenuEvent};
-#[cfg(target_os = "windows")]
-use windows_sys::Win32::{
-    Foundation::HWND,
-    UI::WindowsAndMessaging::{SW_RESTORE, SW_SHOW, SetForegroundWindow, ShowWindow},
-};
+use tray_icon::TrayIcon;
 
 pub const APP_NAME: &str = concat!("Impactor – Version ", env!("CARGO_PKG_VERSION"));
-
-fn load_tray_icon() -> Icon {
-    let bytes = include_bytes!("./tray.png");
-    let image = image::load_from_memory(bytes)
-        .expect("tray.png is invalid")
-        .to_rgba8();
-    let (width, height) = image.dimensions();
-    Icon::from_rgba(image.into_raw(), width, height).expect("tray icon data invalid")
-}
 
 #[tokio::main]
 async fn main() -> eframe::Result<()> {
@@ -47,16 +28,13 @@ async fn main() -> eframe::Result<()> {
 
     #[cfg(target_os = "linux")]
     {
-        // wayland is so fucking broken
+        // SAFETY: wayland is so fucking broken idc
         unsafe {
             env::set_var("WINIT_UNIX_BACKEND", "x11");
             env::remove_var("WAYLAND_DISPLAY");
             env::remove_var("WAYLAND_SOCKET");
         }
-    }
 
-    #[cfg(target_os = "linux")]
-    {
         gtk::init().expect("GTK init failed");
     }
 
@@ -72,13 +50,9 @@ async fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
-    #[cfg(target_os = "macos")]
-    {
-        options.viewport.icon = Some(std::sync::Arc::new(egui::IconData::default()));
-    }
-
     #[cfg(not(target_os = "macos"))]
     {
+        options.viewport.icon = Some(std::sync::Arc::new(egui::IconData::default()));
         let icon_bytes: &[u8] = include_bytes!(
             "../../../package/linux/icons/hicolor/32x32/apps/dev.khcrysalis.PlumeImpactor.png"
         );
@@ -95,9 +69,9 @@ async fn main() -> eframe::Result<()> {
         options,
         Box::new(|ctx| {
             #[cfg(target_os = "windows")]
-            let tray_menu_events = setup_tray(&tray, &ctx.egui_ctx, win32_hwnd.clone());
+            let tray_menu_events = tray::setup_tray(&tray, &ctx.egui_ctx, win32_hwnd.clone());
             #[cfg(not(target_os = "windows"))]
-            let tray_menu_events = setup_tray(&tray, &ctx.egui_ctx);
+            let tray_menu_events = tray::setup_tray(&tray, &ctx.egui_ctx);
 
             Ok(Box::new(app::ImpactorApp {
                 receiver: Some(rx),
@@ -110,80 +84,6 @@ async fn main() -> eframe::Result<()> {
             }))
         }),
     )
-}
-
-#[cfg(target_os = "windows")]
-fn setup_tray(
-    tray: &Rc<RefCell<Option<TrayIcon>>>,
-    ctx: &egui::Context,
-    win32_hwnd: Arc<AtomicIsize>,
-) -> std_mpsc::Receiver<MenuEvent> {
-    let icon = load_tray_icon();
-
-    let tray_icon = TrayIconBuilder::new()
-        .with_icon(icon)
-        .with_tooltip(APP_NAME)
-        .build()
-        .unwrap();
-
-    let (menu_tx, menu_rx) = std_mpsc::channel();
-
-    MenuEvent::set_event_handler(Some({
-        let ctx = ctx.clone();
-        move |event: MenuEvent| {
-            if event.id.as_ref() == "open" {
-                restore_window_from_tray(win32_hwnd.load(Ordering::Acquire));
-            }
-
-            let _ = menu_tx.send(event);
-            ctx.request_repaint();
-        }
-    }));
-
-    tray.borrow_mut().replace(tray_icon);
-
-    menu_rx
-}
-
-#[cfg(target_os = "windows")]
-fn restore_window_from_tray(hwnd: isize) {
-    if hwnd == 0 {
-        return;
-    }
-
-    unsafe {
-        _ = ShowWindow(hwnd as HWND, SW_SHOW);
-        _ = ShowWindow(hwnd as HWND, SW_RESTORE);
-        _ = SetForegroundWindow(hwnd as HWND);
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn setup_tray(
-    tray: &Rc<RefCell<Option<TrayIcon>>>,
-    ctx: &egui::Context,
-) -> std_mpsc::Receiver<MenuEvent> {
-    let icon = load_tray_icon();
-
-    let tray_icon = TrayIconBuilder::new()
-        .with_icon(icon)
-        .with_tooltip(APP_NAME)
-        .build()
-        .unwrap();
-
-    let (menu_tx, menu_rx) = std_mpsc::channel();
-
-    MenuEvent::set_event_handler(Some({
-        let ctx = ctx.clone();
-        move |event: MenuEvent| {
-            let _ = menu_tx.send(event);
-            ctx.request_repaint();
-        }
-    }));
-
-    tray.borrow_mut().replace(tray_icon);
-
-    menu_rx
 }
 
 pub fn get_data_path() -> PathBuf {

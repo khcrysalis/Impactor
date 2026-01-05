@@ -84,7 +84,7 @@ fn load_embedded_install_image() -> Result<ColorImage, String> {
 }
 
 impl eframe::App for ImpactorApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if ctx.input(|i| i.viewport().close_requested()) {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
@@ -103,7 +103,7 @@ impl eframe::App for ImpactorApp {
         }
 
         #[cfg(target_os = "windows")]
-        cache_hwnd(frame, self.win32_hwnd.as_ref());
+        cache_hwnd(_frame, self.win32_hwnd.as_ref());
 
         // ---------------- Tray menu events ----------------
         if let Some(rx) = self.tray_menu_events.as_ref() {
@@ -258,7 +258,7 @@ fn build_tray_menu(app: &ImpactorApp) -> Menu {
         menu.append(&devices_submenu).unwrap();
     }
     menu.append(&PredefinedMenuItem::separator()).unwrap();
-    menu.append(&MenuItem::with_id("quit", "Quit", true, None))
+    menu.append(&MenuItem::with_id("quit", "Quit Impactor", true, None))
         .unwrap();
 
     menu
