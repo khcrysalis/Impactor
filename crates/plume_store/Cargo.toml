@@ -9,7 +9,7 @@ repository.workspace = true
 
 [dependencies]
 tokio.workspace = true
-plume_core = { path = "../plume_core" }
+plume_core = { path = "../plume_core", features = ["tweaks"] }
 # TODO: move this to workspace
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }

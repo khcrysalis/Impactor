@@ -49,5 +49,4 @@ srp = { git = "https://github.com/PlumeImpactor/plume-PAKEs", rev = "047936a", p
 
 [features]
 default = []
-# TODO: add features lmao
 tweaks = []

@@ -15,7 +15,7 @@ plist.workspace = true
 tokio.workspace = true
 futures.workspace = true
 log.workspace = true
-plume_core = { path = "../plume_core" }
+plume_core = { path = "../plume_core", features = ["tweaks"] }
 
 # TODO: replace zip with decompress
 zip = { version = "4.3", default-features = false, features = ["deflate"] }

@@ -14,7 +14,7 @@ uuid.workspace = true
 plist.workspace = true
 futures.workspace = true
 env_logger.workspace = true
-plume_core = { path = "../../crates/plume_core" }
+plume_core = { path = "../../crates/plume_core", features = ["tweaks"] }
 plume_utils = { path = "../../crates/plume_types" }
 plume_store = { path = "../../crates/plume_store" }
 

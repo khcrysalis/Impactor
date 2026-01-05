@@ -1,10 +1,12 @@
 use plist::Value;
 
 mod certificate;
+#[cfg(feature = "tweaks")]
 mod macho;
 mod provision;
 
 pub use certificate::CertificateIdentity;
+#[cfg(feature = "tweaks")]
 pub use macho::{MachO, MachOExt};
 pub use provision::MobileProvision;
 
