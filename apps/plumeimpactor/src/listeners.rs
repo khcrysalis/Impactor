@@ -263,6 +263,56 @@ async fn spawn_package_handler_impl(
     Ok(())
 }
 
+pub(crate) fn spawn_certificate_export_handler(gsa_account: GsaAccount) {
+    tokio::task::spawn_blocking(move || {
+        let rt = Builder::new_current_thread().enable_all().build().unwrap();
+        rt.block_on(async move {
+            _ = spawn_certificate_export_handler_impl(gsa_account).await;
+        });
+    });
+}
+
+async fn spawn_certificate_export_handler_impl(
+    gsa_account: GsaAccount,
+) -> Result<(), plume_utils::Error> {
+    let session = DeveloperSession::new(
+        gsa_account.adsid().clone(),
+        gsa_account.xcode_gs_token().clone(),
+        AnisetteConfiguration::default().set_configuration_path(get_data_path()),
+    )
+    .await?;
+
+    let team_id = &session.qh_list_teams().await?.teams[0].team_id;
+
+    let identity =
+        CertificateIdentity::new_with_session(&session, get_data_path(), None, team_id).await?;
+
+    let p12_data = identity.p12_data;
+
+    let Some(p12_data) = p12_data else {
+        return Err(plume_utils::Error::Other("Missing p12 data".to_string()));
+    };
+
+    let archive_path = get_data_path().join(format!("{}_certificate.p12", team_id));
+    tokio::fs::write(&archive_path, p12_data).await?;
+
+    let file = rfd::AsyncFileDialog::new()
+        .set_title("Save Signed Package As")
+        .set_file_name(
+            archive_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("certificate.p12"),
+        )
+        .save_file()
+        .await;
+    if let Some(save_path) = file {
+        tokio::fs::copy(&archive_path, &save_path.path()).await?;
+    }
+
+    Ok(())
+}
+
 // -----------------------------------------------------------------------------
 // pair
 // -----------------------------------------------------------------------------

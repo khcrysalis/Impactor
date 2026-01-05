@@ -13,7 +13,7 @@ use tray_icon::{
     menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu},
 };
 
-use crate::listeners::spawn_package_handler;
+use crate::listeners::{spawn_certificate_export_handler, spawn_package_handler};
 use crate::login::LoginUi;
 
 #[cfg(target_os = "windows")]
@@ -626,6 +626,7 @@ fn ui_settings(ui: &mut egui::Ui, app: &mut ImpactorApp) {
                     });
             });
 
+        // Process selection and removals after UI borrow ends
         if let Some(index) = select_index {
             app.handle_message(AppMessage::AccountSelected(index));
         }
@@ -642,8 +643,16 @@ fn ui_settings(ui: &mut egui::Ui, app: &mut ImpactorApp) {
         ui.add_space(8.0);
     }
 
-    ui.heading("Misc");
-    ui.separator();
+    if let Some(store) = &app.store {
+        ui.heading("Misc");
+        ui.separator();
+
+        if let Some(account) = store.selected_account() {
+            if ui.button("Export Certificate").clicked() {
+                spawn_certificate_export_handler(account.clone());
+            }
+        }
+    }
 
     ui.add_space(ui.available_size().y - 18.0);
 
