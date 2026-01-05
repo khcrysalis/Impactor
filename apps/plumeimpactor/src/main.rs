@@ -50,11 +50,17 @@ async fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
-    #[cfg(not(target_os = "macos"))]
+    // on macOS, just remove the icon entirely, with no icon data..
+    // we use the bundle icon instead.
+    #[cfg(target_os = "macos")]
     {
         options.viewport.icon = Some(std::sync::Arc::new(egui::IconData::default()));
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
         let icon_bytes: &[u8] = include_bytes!(
-            "../../../package/linux/icons/hicolor/32x32/apps/dev.khcrysalis.PlumeImpactor.png"
+            "../../../package/linux/icons/hicolor/64x64/apps/dev.khcrysalis.PlumeImpactor.png"
         );
         let d = eframe::icon_data::from_png_bytes(icon_bytes).expect("The icon data must be valid");
         options.viewport.icon = Some(std::sync::Arc::new(d));

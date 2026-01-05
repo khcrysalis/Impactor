@@ -75,14 +75,6 @@ impl Default for ImpactorApp {
     }
 }
 
-fn load_embedded_install_image() -> Result<ColorImage, String> {
-    const INSTALL_PNG: &[u8] = include_bytes!("./install.png");
-    let image = image::load_from_memory(INSTALL_PNG).map_err(|e| e.to_string())?;
-    let size = [image.width() as usize, image.height() as usize];
-    let image = image.to_rgba8();
-    Ok(ColorImage::from_rgba_unmultiplied(size, &image))
-}
-
 impl eframe::App for ImpactorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if ctx.input(|i| i.viewport().close_requested()) {
@@ -783,4 +775,16 @@ impl ImpactorApp {
             }
         }
     }
+}
+
+// -----------------------------------------------------------------------------
+// Images
+// -----------------------------------------------------------------------------
+
+fn load_embedded_install_image() -> Result<ColorImage, String> {
+    const INSTALL_PNG: &[u8] = include_bytes!("./install.png");
+    let image = image::load_from_memory(INSTALL_PNG).map_err(|e| e.to_string())?;
+    let size = [image.width() as usize, image.height() as usize];
+    let image = image.to_rgba8();
+    Ok(ColorImage::from_rgba_unmultiplied(size, &image))
 }

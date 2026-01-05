@@ -87,6 +87,10 @@ pub fn setup_tray(
     menu_rx
 }
 
+// -----------------------------------------------------------------------------
+// Images
+// -----------------------------------------------------------------------------
+
 fn load_tray_icon() -> Icon {
     let bytes = include_bytes!("./tray.png");
     let image = image::load_from_memory(bytes)

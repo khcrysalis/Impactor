@@ -17,6 +17,9 @@ env_logger.workspace = true
 plume_core = { path = "../../crates/plume_core" }
 plume_utils = { path = "../../crates/plume_types" }
 
+rustls = { version = "0.23.32", features = ["ring"] }
+
+# GUI
 egui = "0.33.3"
 eframe = { version = "0.33.3", default-features = false, features = [
     "wgpu",
@@ -27,17 +30,19 @@ wgpu = { version = "27", features = ["dx12", "vulkan", "metal", "gles"] }
 image = "0.25.9"
 tray-icon = { version = "0.21.2", default-features = false }
 rfd = "0.16.0"
-rustls = { version = "0.23.32", features = ["ring"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
+
 [target.'cfg(target_os = "macos")'.dependencies]
 plume_gestalt = { path = "../../crates/plume_gestalt" }
-[target.'cfg(target_os = "windows")'.build-dependencies]
-winres = "0.1"
+
 [target.'cfg(target_os = "windows")'.dependencies]
 raw-window-handle = "0.6"
 windows-sys = { version = "0.61.2", features = [
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging",
 ] }
+
+[target.'cfg(target_os = "windows")'.build-dependencies]
+winres = "0.1"
