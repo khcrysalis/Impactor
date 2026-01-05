@@ -34,7 +34,7 @@ pub(crate) fn spawn_store_handler(sender: mpsc::UnboundedSender<AppMessage>) {
 // -----------------------------------------------------------------------------
 pub(crate) fn spawn_usbmuxd_listener(sender: mpsc::UnboundedSender<AppMessage>) {
     thread::spawn(move || {
-        let rt = Builder::new_current_thread().enable_io().build().unwrap();
+        let rt = Builder::new_current_thread().enable_all().build().unwrap();
 
         rt.block_on(async move {
             #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
