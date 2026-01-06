@@ -1,4 +1,4 @@
-use std::{thread, time::Duration};
+use std::thread;
 
 use futures::StreamExt;
 use idevice::usbmuxd::{UsbmuxdConnection, UsbmuxdListenEvent};
@@ -6,7 +6,7 @@ use plume_core::{AnisetteConfiguration, CertificateIdentity, developer::Develope
 
 use plume_store::GsaAccount;
 use plume_utils::{Device, Package, Signer, SignerInstallMode, SignerMode};
-use tokio::{runtime::Builder, sync::mpsc, time::sleep};
+use tokio::{runtime::Builder, sync::mpsc};
 
 use crate::{app::AppMessage, get_data_path};
 
@@ -52,41 +52,29 @@ pub(crate) fn spawn_usbmuxd_listener(sender: mpsc::UnboundedSender<AppMessage>) 
                 }
             }
 
-            loop {
-                let mut muxer = match UsbmuxdConnection::default().await {
-                    Ok(m) => m,
-                    Err(_) => {
-                        sleep(Duration::from_secs(2)).await;
-                        continue;
-                    }
-                };
+            let Ok(mut muxer) = UsbmuxdConnection::default().await else {
+                return;
+            };
 
-                if let Ok(devices) = muxer.get_devices().await {
-                    for dev in devices {
-                        let _ = sender.send(AppMessage::DeviceConnected(Device::new(dev).await));
-                    }
+            if let Ok(devices) = muxer.get_devices().await {
+                for dev in devices {
+                    let _ = sender.send(AppMessage::DeviceConnected(Device::new(dev).await));
                 }
+            }
 
-                let mut stream = match muxer.listen().await {
-                    Ok(s) => s,
-                    Err(_) => {
-                        sleep(Duration::from_secs(2)).await;
-                        continue;
+            let Ok(mut stream) = muxer.listen().await else {
+                return;
+            };
+
+            while let Some(event) = stream.next().await {
+                let msg = match event {
+                    Ok(UsbmuxdListenEvent::Connected(dev)) => {
+                        AppMessage::DeviceConnected(Device::new(dev).await)
                     }
+                    Ok(UsbmuxdListenEvent::Disconnected(id)) => AppMessage::DeviceDisconnected(id),
+                    Err(e) => AppMessage::Error(e.to_string()),
                 };
-
-                while let Some(event) = stream.next().await {
-                    let msg = match event {
-                        Ok(UsbmuxdListenEvent::Connected(dev)) => {
-                            AppMessage::DeviceConnected(Device::new(dev).await)
-                        }
-                        Ok(UsbmuxdListenEvent::Disconnected(id)) => {
-                            AppMessage::DeviceDisconnected(id)
-                        }
-                        Err(e) => AppMessage::Error(e.to_string()),
-                    };
-                    let _ = sender.send(msg);
-                }
+                let _ = sender.send(msg);
             }
         });
     });
