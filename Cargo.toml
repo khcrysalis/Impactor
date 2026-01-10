@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "apps/plume_impactor",
     "apps/plumeimpactor",
     "apps/plumesign",
     "crates/plume_core",

@@ -1,0 +1,25 @@
+[package]
+name = "plume_impactor"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+idevice.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+plist.workspace = true
+futures.workspace = true
+env_logger.workspace = true
+plume_core = { path = "../../crates/plume_core", features = ["tweaks"] }
+plume_utils = { path = "../../crates/plume_types" }
+plume_store = { path = "../../crates/plume_store" }
+
+rustls = { version = "0.23.32", features = ["ring"] }
+
+iced = "0.14.0"
+tray-icon = { version = "0.21.2", default-features = false }
+image = "0.25"
