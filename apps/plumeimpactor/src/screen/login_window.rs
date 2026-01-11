@@ -84,7 +84,6 @@ impl LoginWindow {
                 let (tx, rx) = std_mpsc::channel::<Result<String, String>>();
                 self.two_factor_tx = Some(tx);
 
-                // Run the login stream
                 Task::run(Self::perform_login(email, password, rx), |msg| msg)
             }
             Message::RequestTwoFactor => {
@@ -102,7 +101,7 @@ impl LoginWindow {
             }
             Message::LoginSuccess(account) => {
                 let path = crate::defaults::get_data_path().join("accounts.json");
-                // Synchronous save for simplicity
+
                 if let Ok(mut store) = tokio::runtime::Runtime::new()
                     .unwrap()
                     .block_on(async { AccountStore::load(&Some(path.clone())).await })
