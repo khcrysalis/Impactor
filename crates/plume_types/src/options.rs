@@ -80,7 +80,16 @@ pub enum SignerInstallMode {
 
 impl Default for SignerInstallMode {
     fn default() -> Self {
-        SignerInstallMode::Export
+        SignerInstallMode::Install
+    }
+}
+
+impl std::fmt::Display for SignerInstallMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SignerInstallMode::Install => write!(f, "Install"),
+            SignerInstallMode::Export => write!(f, "Export"),
+        }
     }
 }
 
@@ -93,7 +102,17 @@ pub enum SignerMode {
 
 impl Default for SignerMode {
     fn default() -> Self {
-        SignerMode::Adhoc
+        SignerMode::Pem
+    }
+}
+
+impl std::fmt::Display for SignerMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SignerMode::Pem => write!(f, "Apple ID"),
+            SignerMode::Adhoc => write!(f, "Adhoc"),
+            SignerMode::None => write!(f, "Modify"),
+        }
     }
 }
 

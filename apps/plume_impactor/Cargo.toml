@@ -20,6 +20,14 @@ plume_store = { path = "../../crates/plume_store" }
 
 rustls = { version = "0.23.32", features = ["ring"] }
 
-iced = "0.14.0"
+iced = { version = "0.14.0", features = ["image", "advanced"] }
 tray-icon = { version = "0.21.2", default-features = false }
 image = "0.25"
+rfd = "0.16.0"
+iced_aw = { version = "0.13.0", features = ["selection_list"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+plume_gestalt = { path = "../../crates/plume_gestalt" }
+
+[target.'cfg(target_os = "windows")'.build-dependencies]
+winres = "0.1"
