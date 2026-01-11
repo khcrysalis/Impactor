@@ -89,9 +89,10 @@ pub(crate) fn tray_subscription() -> Subscription<Message> {
                             let _ = tx.unbounded_send(Message::TrayMenuClicked(event.id));
                         }
 
+                        #[cfg(target_os = "windows")]
                         if let Ok(event) = tray_channel.try_recv() {
                             match event {
-                                TrayIconEvent::DoubleClick {
+                                TrayIconEvent::Click {
                                     button: tray_icon::MouseButton::Left,
                                     ..
                                 } => {

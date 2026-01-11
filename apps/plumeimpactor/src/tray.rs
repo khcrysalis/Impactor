@@ -5,12 +5,17 @@ use tray_icon::{
 
 pub(crate) fn build_tray_icon(menu: &Menu) -> TrayIcon {
     let icon = load_icon();
-    tray_icon::TrayIconBuilder::new()
+    let mut builder = tray_icon::TrayIconBuilder::new()
         .with_menu(Box::new(menu.clone()))
         .with_tooltip(crate::APP_NAME)
-        .with_icon(icon)
-        .build()
-        .expect("Failed to build tray icon")
+        .with_icon(icon);
+
+    #[cfg(target_os = "windows")]
+    {
+        builder = builder.with_menu_on_left_click(false);
+    }
+
+    builder.build().expect("Failed to build tray icon")
 }
 
 fn load_icon() -> tray_icon::Icon {
