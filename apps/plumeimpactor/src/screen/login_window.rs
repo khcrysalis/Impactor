@@ -1,3 +1,4 @@
+use iced::futures::SinkExt;
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::{Alignment, Element, Fill, Task, window};
 use plume_core::{AnisetteConfiguration, auth::Account};
@@ -15,6 +16,7 @@ pub enum Message {
     TwoFactorCodeChanged(String),
     TwoFactorSubmit,
     TwoFactorCancel,
+    RequestTwoFactor,
 }
 
 pub struct LoginWindow {
@@ -69,27 +71,26 @@ impl LoginWindow {
             }
             Message::LoginSubmit => {
                 if self.email.trim().is_empty() || self.password.is_empty() {
-                    Message::LoginFailed("Email and password are required".to_string());
-                    return Task::none();
+                    return Task::done(Message::LoginFailed(
+                        "Email and password required".to_string(),
+                    ));
                 }
 
                 self.is_logging_in = true;
-
                 let email = self.email.trim().to_string();
                 let password = self.password.clone();
-
                 self.password.clear();
 
                 let (tx, rx) = std_mpsc::channel::<Result<String, String>>();
                 self.two_factor_tx = Some(tx);
 
-                Task::perform(
-                    Self::perform_login(email, password, rx),
-                    |result| match result {
-                        Ok(account) => Message::LoginSuccess(account),
-                        Err(e) => Message::LoginFailed(e),
-                    },
-                )
+                // Run the login stream
+                Task::run(Self::perform_login(email, password, rx), |msg| msg)
+            }
+            Message::RequestTwoFactor => {
+                self.show_two_factor = true;
+                self.is_logging_in = false;
+                Task::none()
             }
             Message::LoginCancel => {
                 if let Some(id) = self.window_id {
@@ -101,6 +102,7 @@ impl LoginWindow {
             }
             Message::LoginSuccess(account) => {
                 let path = crate::defaults::get_data_path().join("accounts.json");
+                // Synchronous save for simplicity
                 if let Ok(mut store) = tokio::runtime::Runtime::new()
                     .unwrap()
                     .block_on(async { AccountStore::load(&Some(path.clone())).await })
@@ -144,14 +146,12 @@ impl LoginWindow {
                 if let Some(tx) = &self.two_factor_tx {
                     let _ = tx.send(Ok(code));
                 }
-                self.show_two_factor = true;
                 Task::none()
             }
             Message::TwoFactorCancel => {
                 if let Some(tx) = self.two_factor_tx.take() {
                     let _ = tx.send(Err("Cancelled".to_string()));
                 }
-
                 if let Some(id) = self.window_id {
                     window::close(id)
                 } else {
@@ -182,7 +182,8 @@ impl LoginWindow {
             .width(Fill);
 
         let mut content = column![
-            text("Your Apple ID is used to sign and install apps to your device, your credentials are never stored or shared and only sent to Apple for authentication.").size(14),
+            text("Your Apple ID is used to sign and install apps. Credentials sent only to Apple.")
+                .size(14),
             text("Email:").size(14),
             email_input,
             text("Password:").size(14),
@@ -194,10 +195,18 @@ impl LoginWindow {
         let buttons = row![
             container(text("")).width(Fill),
             button("Cancel").on_press(Message::LoginCancel).padding(8),
-            button("Next")
-                .on_press(Message::LoginSubmit)
-                .padding(8)
-                .style(button::primary),
+            button(if self.is_logging_in {
+                "Connecting..."
+            } else {
+                "Next"
+            })
+            .on_press_maybe(if self.is_logging_in {
+                None
+            } else {
+                Some(Message::LoginSubmit)
+            })
+            .padding(8)
+            .style(button::primary),
         ]
         .spacing(10);
 
@@ -240,57 +249,61 @@ impl LoginWindow {
         .spacing(10);
 
         content = content.push(buttons);
-
         container(content).padding(20).into()
     }
 
-    async fn perform_login(
+    fn perform_login(
         email: String,
         password: String,
         two_factor_rx: std_mpsc::Receiver<Result<String, String>>,
-    ) -> Result<GsaAccount, String> {
-        let (result_tx, result_rx) = std_mpsc::channel();
+    ) -> impl iced::futures::Stream<Item = Message> {
+        iced::stream::channel(
+            10,
+            move |mut output: futures::channel::mpsc::Sender<Message>| async move {
+                let (bridge_tx, mut bridge_rx) = tokio::sync::mpsc::unbounded_channel::<Message>();
+                let email_clone = email.clone();
 
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap();
+                std::thread::spawn(move || {
+                    let rt = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .unwrap();
 
-            let anisette_config = AnisetteConfiguration::default()
-                .set_configuration_path(crate::defaults::get_data_path());
+                    let anisette_config = AnisetteConfiguration::default()
+                        .set_configuration_path(crate::defaults::get_data_path());
 
-            let account_result = rt.block_on(Account::login(
-                || Ok((email.clone(), password.clone())),
-                move || match two_factor_rx.recv() {
-                    Ok(result) => result,
-                    Err(_) => Err("Two-factor authentication cancelled".to_string()),
-                },
-                anisette_config,
-            ));
+                    let account_result = rt.block_on(Account::login(
+                        || Ok((email_clone.clone(), password.clone())),
+                        || {
+                            let _ = bridge_tx.send(Message::RequestTwoFactor);
 
-            match account_result {
-                Ok(account) => {
-                    match rt.block_on(plume_store::account_from_session(email.clone(), account)) {
-                        Ok(gsa_account) => {
-                            let _ = result_tx.send(Ok(gsa_account));
+                            match two_factor_rx.recv() {
+                                Ok(result) => result,
+                                Err(_) => Err("Two-factor authentication cancelled".to_string()),
+                            }
+                        },
+                        anisette_config,
+                    ));
+
+                    let final_msg = match account_result {
+                        Ok(account) => {
+                            match rt.block_on(plume_store::account_from_session(
+                                email_clone.clone(),
+                                account,
+                            )) {
+                                Ok(gsa) => Message::LoginSuccess(gsa),
+                                Err(e) => Message::LoginFailed(e.to_string()),
+                            }
                         }
-                        Err(e) => {
-                            let _ = result_tx.send(Err(format!(
-                                "Failed to create GSA account from session: {}",
-                                e
-                            )));
-                        }
-                    }
-                }
-                Err(e) => {
-                    let _ = result_tx.send(Err(format!("Login failed: {}", e)));
-                }
-            }
-        });
+                        Err(e) => Message::LoginFailed(e.to_string()),
+                    };
+                    let _ = bridge_tx.send(final_msg);
+                });
 
-        result_rx
-            .recv()
-            .unwrap_or_else(|_| Err("Login handler disconnected".to_string()))
+                while let Some(msg) = bridge_rx.recv().await {
+                    let _ = output.send(msg).await;
+                }
+            },
+        )
     }
 }
