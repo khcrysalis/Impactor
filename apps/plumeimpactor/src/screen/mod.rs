@@ -4,8 +4,12 @@ mod progress;
 mod settings;
 mod windows;
 
+use iced::Alignment::Center;
+use iced::Length::Fill;
+use iced::widget::{button, container, pick_list, row, text};
 use iced::window;
 use iced::{Element, Subscription, Task};
+
 use plume_store::AccountStore;
 use plume_utils::{Device, SignerOptions};
 
@@ -413,10 +417,6 @@ impl Impactor {
     }
 
     fn view_top_bar(&self) -> Element<'_, Message> {
-        use crate::appearance;
-        use iced::widget::{button, container, pick_list, row, text};
-        use iced::{Center, Fill};
-
         if matches!(self.current_screen, ImpactorScreen::Settings(_)) {
             return container(row![
                 container(text("")).width(Fill),
