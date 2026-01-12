@@ -367,11 +367,19 @@ impl Impactor {
                 Subscription::none()
             };
 
+        let close_subscription = iced::event::listen_with(|event, _status, _id| {
+            if let iced::Event::Window(window::Event::CloseRequested) = event {
+                return Some(Message::HideWindow);
+            }
+            None
+        });
+
         Subscription::batch(vec![
             device_subscription,
             tray_subscription,
             hover_subscription,
             progress_subscription,
+            close_subscription,
         ])
     }
 
