@@ -1,6 +1,5 @@
 use iced::widget::{button, column, container, scrollable, text};
 use iced::{Alignment, Element, Length, Task, window};
-use iced_aw::SelectionList;
 
 use crate::appearance;
 
@@ -54,19 +53,34 @@ impl TeamSelectionWindow {
             .size(14)
             .width(Length::Fill);
 
-        let team_labels: &'static [String] = Box::leak(self.teams.clone().into_boxed_slice());
+        let team_list = self.teams.iter().enumerate().fold(
+            column![].spacing(5.0),
+            |content, (index, team)| {
+                let marker = if Some(index) == self.selected_index {
+                    " [✓] "
+                } else {
+                    " [ ] "
+                };
+                let style = if Some(index) == self.selected_index {
+                    appearance::p_button
+                } else {
+                    appearance::s_button
+                };
 
-        let selection_list = SelectionList::new_with(
-            team_labels,
-            |index, _| Message::SelectTeam(index),
-            appearance::THEME_FONT_SIZE.into(),
-            5.0,
-            iced_aw::style::selection_list::primary,
-            self.selected_index,
-            appearance::p_font(),
+                content.push(
+                    button(
+                        text(format!("{}{}", marker, team))
+                            .size(appearance::THEME_FONT_SIZE)
+                            .align_x(Alignment::Start),
+                    )
+                    .on_press(Message::SelectTeam(index))
+                    .style(style)
+                    .width(Length::Fill),
+                )
+            },
         );
 
-        let list_container = container(scrollable(selection_list))
+        let list_container = container(scrollable(team_list))
             .height(Length::Fill)
             .style(|theme: &iced::Theme| container::Style {
                 border: iced::Border {

@@ -1,6 +1,5 @@
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Center, Element, Fill, Task};
-use iced_aw::SelectionList;
 use plume_store::AccountStore;
 
 use crate::appearance;
@@ -100,38 +99,39 @@ impl SettingsScreen {
         accounts: &[(&String, &plume_store::GsaAccount)],
         selected_index: Option<usize>,
     ) -> Element<'_, Message> {
-        let account_labels: &'static [String] = Box::leak(
-            accounts
-                .iter()
-                .enumerate()
-                .map(|(i, (_, account))| {
-                    let name = if !account.first_name().is_empty() {
-                        format!("{} ({})", account.first_name(), account.email())
-                    } else {
-                        account.email().to_string()
-                    };
-                    let marker = if Some(i) == selected_index {
-                        " [✓] "
-                    } else {
-                        " [ ] "
-                    };
-                    format!("{}{}", marker, name)
-                })
-                .collect::<Vec<_>>()
-                .into_boxed_slice(),
+        let account_list = accounts.iter().enumerate().fold(
+            column![].spacing(5.0),
+            |content, (index, (_, account))| {
+                let name = if !account.first_name().is_empty() {
+                    format!("{} ({})", account.first_name(), account.email())
+                } else {
+                    account.email().to_string()
+                };
+                let marker = if Some(index) == selected_index {
+                    " [✓] "
+                } else {
+                    " [ ] "
+                };
+                let style = if Some(index) == selected_index {
+                    appearance::p_button
+                } else {
+                    appearance::s_button
+                };
+
+                content.push(
+                    button(
+                        text(format!("{}{}", marker, name))
+                            .size(appearance::THEME_FONT_SIZE)
+                            .align_x(Alignment::Start),
+                    )
+                        .on_press(Message::SelectAccount(index))
+                        .style(style)
+                        .width(Fill),
+                )
+            },
         );
 
-        let selection_list = SelectionList::new_with(
-            account_labels,
-            |index, _| Message::SelectAccount(index),
-            appearance::THEME_FONT_SIZE.into(),
-            5.0,
-            iced_aw::style::selection_list::primary,
-            selected_index,
-            appearance::p_font(),
-        );
-
-        container(selection_list)
+        container(scrollable(account_list))
             .height(Fill)
             .style(|theme: &iced::Theme| container::Style {
                 border: iced::Border {
