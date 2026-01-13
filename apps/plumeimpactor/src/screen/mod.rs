@@ -1,4 +1,4 @@
-mod general;
+pub(crate) mod general;
 mod package;
 mod progress;
 mod settings;
@@ -362,14 +362,20 @@ impl Impactor {
                             // Check if PEM mode and no account - need to login first
                             use plume_utils::SignerMode;
                             if matches!(screen.options.mode, SignerMode::Pem) {
-                                if self.account_store.as_ref().and_then(|s| s.selected_account()).is_none() {
+                                if self
+                                    .account_store
+                                    .as_ref()
+                                    .and_then(|s| s.selected_account())
+                                    .is_none()
+                                {
                                     // Store that we have a pending installation
                                     self.pending_installation = true;
-                                    
+
                                     let (login_window, task) = login_window::LoginWindow::new();
                                     let id = login_window.window_id().unwrap();
                                     self.login_windows.insert(id, login_window);
-                                    return task.map(move |msg| Message::LoginWindowMessage(id, msg));
+                                    return task
+                                        .map(move |msg| Message::LoginWindowMessage(id, msg));
                                 }
                             }
 
@@ -396,34 +402,12 @@ impl Impactor {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        let device_subscription = subscriptions::device_listener().map(|msg| match msg {
-            crate::subscriptions::DeviceMessage::Connected(device) => {
-                Message::DeviceConnected(device)
-            }
-            crate::subscriptions::DeviceMessage::Disconnected(id) => {
-                Message::DeviceDisconnected(id)
-            }
-        });
+        let device_subscription = subscriptions::device_listener();
 
-        let tray_subscription = subscriptions::tray_subscription().map(|msg| match msg {
-            crate::subscriptions::TrayMessage::MenuClicked(id) => Message::TrayMenuClicked(id),
-            crate::subscriptions::TrayMessage::IconClicked => Message::TrayIconClicked,
-            #[cfg(target_os = "linux")]
-            crate::subscriptions::TrayMessage::GtkTick => Message::GtkTick,
-        });
+        let tray_subscription = subscriptions::tray_subscription();
 
         let hover_subscription = if let ImpactorScreen::Main(_) = self.current_screen {
-            subscriptions::file_hover_subscription().map(|msg| match msg {
-                crate::subscriptions::FileHoverMessage::Hovered => {
-                    Message::MainScreen(general::Message::FilesHovered)
-                }
-                crate::subscriptions::FileHoverMessage::HoveredLeft => {
-                    Message::MainScreen(general::Message::FilesHoveredLeft)
-                }
-                crate::subscriptions::FileHoverMessage::Dropped(paths) => {
-                    Message::MainScreen(general::Message::FilesDropped(paths))
-                }
-            })
+            subscriptions::file_hover_subscription()
         } else {
             Subscription::none()
         };

@@ -3,36 +3,16 @@ use idevice::usbmuxd::{UsbmuxdConnection, UsbmuxdListenEvent};
 use std::sync::Arc;
 use tray_icon::{TrayIconEvent, menu::MenuEvent};
 
+use crate::screen::{Message, general};
 use plume_utils::Device;
 
-#[derive(Debug, Clone)]
-pub enum DeviceMessage {
-    Connected(Device),
-    Disconnected(u32),
-}
-
-#[derive(Debug, Clone)]
-pub enum TrayMessage {
-    MenuClicked(tray_icon::menu::MenuId),
-    IconClicked,
-    #[cfg(target_os = "linux")]
-    GtkTick,
-}
-
-#[derive(Debug, Clone)]
-pub enum FileHoverMessage {
-    Hovered,
-    HoveredLeft,
-    Dropped(Vec<std::path::PathBuf>),
-}
-
-pub(crate) fn device_listener() -> Subscription<DeviceMessage> {
+pub(crate) fn device_listener() -> Subscription<Message> {
     Subscription::run(|| {
         iced::stream::channel(
             100,
-            |mut output: iced::futures::channel::mpsc::Sender<DeviceMessage>| async move {
+            |mut output: iced::futures::channel::mpsc::Sender<Message>| async move {
                 use iced::futures::{SinkExt, StreamExt};
-                let (tx, mut rx) = iced::futures::channel::mpsc::unbounded::<DeviceMessage>();
+                let (tx, mut rx) = iced::futures::channel::mpsc::unbounded::<Message>();
 
                 std::thread::spawn(move || {
                     let rt = tokio::runtime::Builder::new_current_thread()
@@ -44,7 +24,7 @@ pub(crate) fn device_listener() -> Subscription<DeviceMessage> {
                         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
                         {
                             if let Some(mac_udid) = plume_gestalt::get_udid() {
-                                let _ = tx.unbounded_send(DeviceMessage::Connected(Device {
+                                let _ = tx.unbounded_send(Message::DeviceConnected(Device {
                                     name: "This Mac".into(),
                                     udid: mac_udid,
                                     device_id: u32::MAX,
@@ -61,7 +41,7 @@ pub(crate) fn device_listener() -> Subscription<DeviceMessage> {
                         if let Ok(devices) = muxer.get_devices().await {
                             for dev in devices {
                                 let device = Device::new(dev).await;
-                                let _ = tx.unbounded_send(DeviceMessage::Connected(device));
+                                let _ = tx.unbounded_send(Message::DeviceConnected(device));
                             }
                         }
 
@@ -72,10 +52,10 @@ pub(crate) fn device_listener() -> Subscription<DeviceMessage> {
                         while let Some(event) = stream.next().await {
                             let msg = match event {
                                 Ok(UsbmuxdListenEvent::Connected(dev)) => {
-                                    DeviceMessage::Connected(Device::new(dev).await)
+                                    Message::DeviceConnected(Device::new(dev).await)
                                 }
                                 Ok(UsbmuxdListenEvent::Disconnected(id)) => {
-                                    DeviceMessage::Disconnected(id)
+                                    Message::DeviceDisconnected(id)
                                 }
                                 Err(_) => continue,
                             };
@@ -92,20 +72,20 @@ pub(crate) fn device_listener() -> Subscription<DeviceMessage> {
     })
 }
 
-pub(crate) fn tray_subscription() -> Subscription<TrayMessage> {
+pub(crate) fn tray_subscription() -> Subscription<Message> {
     Subscription::run(|| {
         iced::stream::channel(
             100,
-            |mut output: iced::futures::channel::mpsc::Sender<TrayMessage>| async move {
+            |mut output: iced::futures::channel::mpsc::Sender<Message>| async move {
                 use iced::futures::{SinkExt, StreamExt};
-                let (tx, mut rx) = iced::futures::channel::mpsc::unbounded::<TrayMessage>();
+                let (tx, mut rx) = iced::futures::channel::mpsc::unbounded::<Message>();
 
                 std::thread::spawn(move || {
                     let menu_channel = MenuEvent::receiver();
                     let tray_channel = TrayIconEvent::receiver();
                     loop {
                         if let Ok(event) = menu_channel.try_recv() {
-                            let _ = tx.unbounded_send(TrayMessage::MenuClicked(event.id));
+                            let _ = tx.unbounded_send(Message::TrayMenuClicked(event.id));
                         }
 
                         if let Ok(event) = tray_channel.try_recv() {
@@ -114,7 +94,7 @@ pub(crate) fn tray_subscription() -> Subscription<TrayMessage> {
                                     button: tray_icon::MouseButton::Left,
                                     ..
                                 } => {
-                                    let _ = tx.unbounded_send(TrayMessage::IconClicked);
+                                    let _ = tx.unbounded_send(Message::TrayIconClicked);
                                 }
                                 _ => {}
                             }
@@ -122,7 +102,7 @@ pub(crate) fn tray_subscription() -> Subscription<TrayMessage> {
 
                         #[cfg(target_os = "linux")]
                         {
-                            let _ = tx.unbounded_send(TrayMessage::GtkTick);
+                            let _ = tx.unbounded_send(Message::GtkTick);
                         }
 
                         std::thread::sleep(std::time::Duration::from_millis(32));
@@ -137,11 +117,17 @@ pub(crate) fn tray_subscription() -> Subscription<TrayMessage> {
     })
 }
 
-pub(crate) fn file_hover_subscription() -> Subscription<FileHoverMessage> {
+pub(crate) fn file_hover_subscription() -> Subscription<Message> {
     let window_events = window::events().filter_map(|(_id, event)| match event {
-        window::Event::FileHovered(_) => Some(FileHoverMessage::Hovered),
-        window::Event::FilesHoveredLeft => Some(FileHoverMessage::HoveredLeft),
-        window::Event::FileDropped(path) => Some(FileHoverMessage::Dropped(vec![path])),
+        window::Event::FileHovered(_) => Some(Message::MainScreen(general::Message::FilesHovered)),
+        window::Event::FilesHoveredLeft => {
+            Some(Message::MainScreen(general::Message::FilesHoveredLeft))
+        }
+        window::Event::FileDropped(path) => {
+            Some(Message::MainScreen(general::Message::FilesDropped(vec![
+                path,
+            ])))
+        }
         _ => None,
     });
 
