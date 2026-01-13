@@ -12,6 +12,7 @@ use crate::options::SignerAppReal;
 use idevice::afc::opcode::AfcFopenMode;
 use idevice::house_arrest::HouseArrestClient;
 use idevice::usbmuxd::UsbmuxdConnection;
+use plist::Value;
 
 pub const CONNECTION_LABEL: &str = "plume_info";
 pub const INSTALLATION_LABEL: &str = "plume_install";
@@ -78,8 +79,12 @@ impl Device {
 
         let mut found_apps = Vec::new();
 
-        for (bundle_id, _) in apps {
-            let signer_app = SignerAppReal::from_bundle_identifier(Some(bundle_id.as_str()));
+        for (bundle_id, info) in apps {
+            let app_name = get_app_name_from_info(&info);
+            let signer_app = SignerAppReal::from_bundle_identifier_and_name(
+                Some(bundle_id.as_str()),
+                app_name.as_deref(),
+            );
 
             if signer_app.app.supports_pairing_file_alt() {
                 found_apps.push(signer_app);
@@ -202,6 +207,15 @@ impl Device {
 
         Ok(())
     }
+}
+
+fn get_app_name_from_info(info: &Value) -> Option<String> {
+    let dict = info.as_dictionary()?;
+    dict.get("CFBundleDisplayName")
+        .and_then(|value| value.as_string())
+        .or_else(|| dict.get("CFBundleName").and_then(|value| value.as_string()))
+        .or_else(|| dict.get("CFBundleExecutable").and_then(|value| value.as_string()))
+        .map(|value| value.to_string())
 }
 
 impl fmt::Display for Device {
