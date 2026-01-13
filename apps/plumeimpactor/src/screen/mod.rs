@@ -2,6 +2,7 @@ pub(crate) mod general;
 mod package;
 mod progress;
 mod settings;
+mod utilties;
 mod windows;
 
 use iced::Alignment::Center;
@@ -51,6 +52,7 @@ pub enum Message {
 
     // Screen-specific messages
     MainScreen(general::Message),
+    UtilitiesScreen(utilties::Message),
     SettingsScreen(settings::Message),
     InstallerScreen(package::Message),
     ProgressScreen(progress::Message),
@@ -79,6 +81,7 @@ pub struct Impactor {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImpactorScreenType {
     Main,
+    Utilities,
     Settings,
     Installer,
     Progress,
@@ -86,6 +89,7 @@ pub enum ImpactorScreenType {
 
 enum ImpactorScreen {
     Main(general::GeneralScreen),
+    Utilities(utilties::UtilitiesScreen),
     Settings(settings::SettingsScreen),
     Installer(package::PackageScreen),
     Progress(progress::ProgressScreen),
@@ -130,6 +134,14 @@ impl Impactor {
                     .iter()
                     .find(|d| d.to_string() == value)
                     .cloned();
+
+                if let ImpactorScreen::Utilities(_) = self.current_screen {
+                    self.current_screen = ImpactorScreen::Utilities(
+                        utilties::UtilitiesScreen::new(self.selected_device.clone()),
+                    );
+                    return Task::done(Message::UtilitiesScreen(utilties::Message::RefreshApps));
+                }
+
                 Task::none()
             }
             Message::DeviceConnected(device) => {
@@ -141,6 +153,13 @@ impl Impactor {
                     }
                 }
 
+                if let ImpactorScreen::Utilities(_) = self.current_screen {
+                    self.current_screen = ImpactorScreen::Utilities(
+                        utilties::UtilitiesScreen::new(self.selected_device.clone()),
+                    );
+                    return Task::done(Message::UtilitiesScreen(utilties::Message::RefreshApps));
+                }
+
                 Task::none()
             }
             Message::DeviceDisconnected(id) => {
@@ -148,6 +167,13 @@ impl Impactor {
 
                 if self.selected_device.as_ref().map(|d| d.device_id) == Some(id) {
                     self.selected_device = self.devices.first().cloned();
+                }
+
+                if let ImpactorScreen::Utilities(_) = self.current_screen {
+                    self.current_screen = ImpactorScreen::Utilities(
+                        utilties::UtilitiesScreen::new(self.selected_device.clone()),
+                    );
+                    return Task::done(Message::UtilitiesScreen(utilties::Message::RefreshApps));
                 }
 
                 Task::none()
@@ -162,12 +188,18 @@ impl Impactor {
                     }
                 }
 
-                self.navigate_to_screen(screen_type);
+                self.navigate_to_screen(screen_type.clone());
+
+                if screen_type == ImpactorScreenType::Utilities {
+                    return Task::done(Message::UtilitiesScreen(utilties::Message::RefreshApps));
+                }
+
                 Task::none()
             }
             Message::NextScreen => {
                 let next_screen = match self.current_screen {
                     ImpactorScreen::Main(_) => ImpactorScreenType::Installer,
+                    ImpactorScreen::Utilities(_) => return Task::none(),
                     ImpactorScreen::Installer(_) => ImpactorScreenType::Progress,
                     ImpactorScreen::Settings(_) => return Task::none(),
                     ImpactorScreen::Progress(_) => return Task::none(),
@@ -178,6 +210,10 @@ impl Impactor {
             }
             Message::PreviousScreen => match &self.current_screen {
                 ImpactorScreen::Main(_) => Task::none(),
+                ImpactorScreen::Utilities(_) => {
+                    self.navigate_to_screen(ImpactorScreenType::Main);
+                    Task::none()
+                }
                 ImpactorScreen::Installer(_) => {
                     self.navigate_to_screen(ImpactorScreenType::Main);
                     Task::none()
@@ -255,7 +291,6 @@ impl Impactor {
                             );
                         }
 
-                        // Check if there's a pending installation to resume
                         if self.pending_installation {
                             if matches!(msg, login_window::Message::LoginSuccess(_)) {
                                 self.pending_installation = false;
@@ -324,9 +359,23 @@ impl Impactor {
                         self.current_screen = ImpactorScreen::Installer(
                             package::PackageScreen::new(Some(package), options),
                         );
+                    } else if let general::Message::NavigateToUtilities = msg {
+                        self.current_screen = ImpactorScreen::Utilities(
+                            utilties::UtilitiesScreen::new(self.selected_device.clone()),
+                        );
+                        return Task::done(Message::UtilitiesScreen(
+                            utilties::Message::RefreshApps,
+                        ));
                     }
 
                     task
+                } else {
+                    Task::none()
+                }
+            }
+            Message::UtilitiesScreen(msg) => {
+                if let ImpactorScreen::Utilities(ref mut screen) = self.current_screen {
+                    screen.update(msg).map(Message::UtilitiesScreen)
                 } else {
                     Task::none()
                 }
@@ -359,7 +408,6 @@ impl Impactor {
                                 return Task::none();
                             }
 
-                            // Check if PEM mode and no account - need to login first
                             use plume_utils::SignerMode;
                             if matches!(screen.options.mode, SignerMode::Pem) {
                                 if self
@@ -368,7 +416,6 @@ impl Impactor {
                                     .and_then(|s| s.selected_account())
                                     .is_none()
                                 {
-                                    // Store that we have a pending installation
                                     self.pending_installation = true;
 
                                     let (login_window, task) = login_window::LoginWindow::new();
@@ -477,6 +524,7 @@ impl Impactor {
     fn view_current_screen(&self, has_device: bool) -> Element<'_, Message> {
         match &self.current_screen {
             ImpactorScreen::Main(screen) => screen.view().map(Message::MainScreen),
+            ImpactorScreen::Utilities(screen) => screen.view().map(Message::UtilitiesScreen),
             ImpactorScreen::Settings(screen) => screen.view().map(Message::SettingsScreen),
             ImpactorScreen::Installer(screen) => {
                 screen.view(has_device).map(Message::InstallerScreen)
@@ -486,23 +534,26 @@ impl Impactor {
     }
 
     fn view_top_bar(&self) -> Element<'_, Message> {
-        if matches!(self.current_screen, ImpactorScreen::Settings(_)) {
-            return container(row![
-                container(text("")).width(Fill),
-                button(text("Back").align_x(Center))
-                    .on_press(Message::PreviousScreen)
-                    .style(appearance::s_button)
-            ])
-            .width(Fill)
-            .into();
-        }
-
         let device_names: Vec<String> = self.devices.iter().map(|d| d.to_string()).collect();
         let selected_device_name = self.selected_device.as_ref().map(|d| d.to_string());
         let placeholder_str = selected_device_name
             .as_ref()
             .map(String::as_str)
             .unwrap_or("No Device");
+
+        let right_button = if matches!(self.current_screen, ImpactorScreen::Settings(_)) {
+            button(text("←").align_x(Center))
+                .on_press(Message::PreviousScreen)
+                .style(appearance::s_button)
+        } else if matches!(self.current_screen, ImpactorScreen::Utilities(_)) {
+            button(text("←").align_x(Center))
+                .on_press(Message::PreviousScreen)
+                .style(appearance::s_button)
+        } else {
+            button(text("≡").align_x(Center))
+                .style(appearance::s_button)
+                .on_press(Message::NavigateToScreen(ImpactorScreenType::Settings))
+        };
 
         container(
             row![
@@ -515,9 +566,7 @@ impl Impactor {
                 .style(appearance::s_pick_list)
                 .placeholder(placeholder_str)
                 .width(250),
-                button(text("≡").align_x(Center))
-                    .style(appearance::s_button)
-                    .on_press(Message::NavigateToScreen(ImpactorScreenType::Settings))
+                right_button
             ]
             .spacing(appearance::THEME_PADDING),
         )
@@ -529,6 +578,11 @@ impl Impactor {
         match screen_type {
             ImpactorScreenType::Main => {
                 self.current_screen = ImpactorScreen::Main(general::GeneralScreen::new());
+            }
+            ImpactorScreenType::Utilities => {
+                self.current_screen = ImpactorScreen::Utilities(utilties::UtilitiesScreen::new(
+                    self.selected_device.clone(),
+                ));
             }
             ImpactorScreenType::Settings => {
                 let account_store = Some(Self::init_account_store_sync());
@@ -558,12 +612,10 @@ impl Impactor {
             let (tx, rx) = std::sync::mpsc::channel();
             let progress_rx = std::sync::Arc::new(std::sync::Mutex::new(rx));
 
-            // Create channels for team selection
             let (team_tx, team_rx) = std::sync::mpsc::channel::<Vec<String>>();
             let (team_response_tx, team_response_rx) =
                 std::sync::mpsc::channel::<Result<usize, String>>();
 
-            // Store the channels for listening and responding
             self.team_selection_listener =
                 Some(std::sync::Arc::new(std::sync::Mutex::new(team_rx)));
             self.team_response_sender = Some(team_response_tx);
@@ -572,7 +624,6 @@ impl Impactor {
             progress_screen.start_installation(progress_rx.clone());
             self.current_screen = ImpactorScreen::Progress(progress_screen);
 
-            // Spawn installation thread
             std::thread::spawn(move || {
                 let rt = tokio::runtime::Runtime::new().unwrap();
                 let tx_error = tx.clone();

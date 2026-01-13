@@ -12,7 +12,6 @@ pub enum Message {
 }
 
 pub struct TeamSelectionWindow {
-    window_id: Option<window::Id>,
     teams: Vec<String>,
     pub selected_index: Option<usize>,
 }
@@ -30,14 +29,9 @@ impl TeamSelectionWindow {
 
     pub fn new(teams: Vec<String>) -> Self {
         Self {
-            window_id: None,
             teams,
             selected_index: None,
         }
-    }
-
-    pub fn window_id(&self) -> Option<window::Id> {
-        self.window_id
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {

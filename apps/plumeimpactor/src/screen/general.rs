@@ -12,6 +12,7 @@ pub enum Message {
     OpenFileDialog,
     FileSelected(Option<std::path::PathBuf>),
     NavigateToInstaller(plume_utils::Package),
+    NavigateToUtilities,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -75,6 +76,10 @@ impl GeneralScreen {
     fn view_buttons(&self) -> Element<'_, Message> {
         container(
             row![
+                button(text("Device Utilities").align_x(Center))
+                    .on_press(Message::NavigateToUtilities)
+                    .width(Fill)
+                    .style(appearance::s_button),
                 button(text("Import .ipa / .tipa").align_x(Center))
                     .on_press(Message::OpenFileDialog)
                     .width(Fill)
