@@ -55,16 +55,24 @@ jobs:
           path: dist/*
 
   build-windows:
-    runs-on: windows-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          targets: x86_64-pc-windows-gnu
 
-      - name: Build binaries
+      - name: Install mingw-w64
         run: |
-          choco install nsis.portable
-          make windows PROFILE=release NSIS=1
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
+
+      - name: Build binaries (cross-compile)
+        run: |
+          cargo build --bins --workspace --release --target x86_64-pc-windows-gnu
+          mkdir -p dist
+          cp target/x86_64-pc-windows-gnu/release/plumeimpactor.exe dist/Impactor-windows-x86_64-portable.exe
+          cp target/x86_64-pc-windows-gnu/release/plumesign.exe dist/plumesign-windows-x86_64.exe
 
       - name: Upload Bundles
         uses: actions/upload-artifact@v4
@@ -72,24 +80,62 @@ jobs:
           name: ${{ env.BINARY_NAME }}-windows
           path: dist/*.exe
 
+  package-windows:
+    runs-on: windows-latest
+    needs: [build-windows]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}-windows
+          path: dist
+
+      - name: Install NSIS
+        run: choco install nsis.portable
+
+      - name: Build NSIS Installer
+        run: |
+          mkdir dist\nsis
+          copy package\windows\* dist\nsis\
+          copy dist\Impactor-windows-x86_64-portable.exe dist\nsis\plumeimpactor.exe
+          makensis dist\nsis\installer.nsi
+          move dist\nsis\installer.exe dist\Impactor-windows-x86_64-setup.exe
+
+      - name: Upload Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}-windows-installer
+          path: dist/Impactor-windows-x86_64-setup.exe
+
   build-macos-slices:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         include:
-          - os: macos-latest
-            target: aarch64-apple-darwin
+          - target: aarch64-apple-darwin
             arch: arm
-          - os: macos-15-intel
-            target: x86_64-apple-darwin
+            suffix: arm64
+          - target: x86_64-apple-darwin
             arch: intel
+            suffix: x86_64
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Setup osxcross
+        uses: Timmmm/setup-osxcross@v1
+        with:
+          osx-version: "12.3"
 
       - name: Build binaries (${{ matrix.arch }})
         run: |
-          make macos PROFILE=release
+          cargo build --bins --workspace --release --target ${{ matrix.target }}
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/plumeimpactor dist/plumeimpactor-macos-${{ matrix.suffix }}
+          cp target/${{ matrix.target }}/release/plumesign dist/plumesign-macos-${{ matrix.suffix }}
 
       - name: Upload ${{ matrix.arch }} Slice
         uses: actions/upload-artifact@v4
