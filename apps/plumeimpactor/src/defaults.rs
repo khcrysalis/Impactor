@@ -11,6 +11,7 @@ pub(crate) fn default_settings() -> iced::Settings {
     iced::Settings {
         default_font: appearance::p_font(),
         default_text_size: appearance::THEME_FONT_SIZE.into(),
+        fonts: appearance::load_fonts(),
         ..Default::default()
     }
 }

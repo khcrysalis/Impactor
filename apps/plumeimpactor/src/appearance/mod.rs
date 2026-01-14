@@ -1,14 +1,21 @@
 use iced::{Color, Theme, color};
 
 mod button;
+mod fonts;
 mod picklist;
 
 pub(crate) use button::{p_button, s_button};
+#[allow(unused)]
+pub(crate) use fonts::{
+    CHEVRON_BACK, DOWNLOAD, FILE, GEAR, MINUS, PLUS, SHARE, STAR, WRENCH, icon, icon_text,
+    load_fonts,
+};
 pub(crate) use picklist::s_pick_list;
 
 pub(crate) const THEME_CORNER_RADIUS: f32 = 4.0;
 pub(crate) const THEME_FONT_SIZE: f32 = 12.0;
 pub(crate) const THEME_PADDING: f32 = 9.0;
+pub(crate) const THEME_ICON_SIZE: f32 = 12.0;
 
 pub(crate) fn p_font() -> iced::Font {
     iced::Font {

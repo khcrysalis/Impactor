@@ -7,10 +7,11 @@ use plume_core::Error;
 
 use crate::gsa_account::GsaAccount;
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct AccountStore {
     selected_account: Option<String>,
     accounts: HashMap<String, GsaAccount>,
+    #[serde(skip)]
     path: Option<PathBuf>,
 }
 
@@ -123,14 +124,38 @@ impl AccountStore {
     ) -> Result<(), Error> {
         let first_name = account.get_name().0;
         let s = plume_core::developer::DeveloperSession::using_account(account).await?;
-        s.qh_list_teams().await?;
+        let teams_response = s.qh_list_teams().await?;
         let adsid = s.adsid().clone();
         let xcode_gs_token = s.xcode_gs_token().clone();
 
-        let account = GsaAccount::new(email, first_name, adsid, xcode_gs_token);
+        let team_id = if teams_response.teams.is_empty() {
+            "".to_string()
+        } else {
+            teams_response.teams[0].team_id.clone()
+        };
+
+        let account = GsaAccount::new(email, first_name, adsid, xcode_gs_token, team_id);
 
         self.accounts_add(account).await?;
 
         Ok(())
+    }
+
+    pub async fn update_account_team(&mut self, email: &str, team_id: String) -> Result<(), Error> {
+        if let Some(account) = self.accounts.get_mut(email) {
+            account.set_team_id(team_id);
+            self.save().await
+        } else {
+            Err(Error::Parse)
+        }
+    }
+
+    pub fn update_account_team_sync(&mut self, email: &str, team_id: String) -> Result<(), Error> {
+        if let Some(account) = self.accounts.get_mut(email) {
+            account.set_team_id(team_id);
+            self.save_sync()
+        } else {
+            Err(Error::Parse)
+        }
     }
 }

@@ -227,10 +227,10 @@ impl PackageScreen {
             text("Tweaks:").size(12),
             self.view_tweaks(),
             row![
-                button(text("Add Tweak").align_x(Center))
+                button(appearance::icon_text(appearance::PLUS, "Add Tweak", None))
                     .on_press(Message::AddTweak)
                     .style(appearance::s_button),
-                button(text("Add Bundle").align_x(Center))
+                button(appearance::icon_text(appearance::PLUS, "Add Bundle", None))
                     .on_press(Message::AddBundle)
                     .style(appearance::s_button),
             ]
@@ -296,14 +296,22 @@ impl PackageScreen {
 
         container(
             row![
-                button(text("Back").align_x(Center))
-                    .on_press(Message::Back)
-                    .style(appearance::s_button)
-                    .width(Fill),
-                button(text(button_label).align_x(Center))
-                    .on_press_maybe(button_enabled.then_some(Message::RequestInstallation))
-                    .style(appearance::p_button)
-                    .width(Fill),
+                button(appearance::icon_text(
+                    appearance::CHEVRON_BACK,
+                    "Back",
+                    None
+                ))
+                .on_press(Message::Back)
+                .style(appearance::s_button)
+                .width(Fill),
+                button(appearance::icon_text(
+                    appearance::DOWNLOAD,
+                    button_label,
+                    None
+                ))
+                .on_press_maybe(button_enabled.then_some(Message::RequestInstallation))
+                .style(appearance::p_button)
+                .width(Fill),
             ]
             .spacing(appearance::THEME_PADDING),
         )
@@ -326,7 +334,7 @@ impl PackageScreen {
                     text(tweak.file_name().and_then(|n| n.to_str()).unwrap_or("???"))
                         .size(12)
                         .width(Fill),
-                    button(text("Remove").align_x(Center))
+                    button(appearance::icon(appearance::MINUS))
                         .on_press(Message::RemoveTweak(i))
                         .style(appearance::s_button)
                         .padding(6)

@@ -190,54 +190,12 @@ pub(crate) fn installation_progress_listener(
     }
 }
 
-pub(crate) fn team_selection_listener(
-    team_rx: Arc<std::sync::Mutex<std::sync::mpsc::Receiver<Vec<String>>>>,
-) -> Subscription<Vec<String>> {
-    struct State {
-        rx: Arc<std::sync::Mutex<std::sync::mpsc::Receiver<Vec<String>>>>,
-    }
-
-    impl std::hash::Hash for State {
-        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-            Arc::as_ptr(&self.rx).hash(state);
-        }
-    }
-
-    let state = State { rx: team_rx };
-    Subscription::run_with(state, |state| {
-        let rx = state.rx.clone();
-        iced::stream::channel(
-            10,
-            move |mut output: iced::futures::channel::mpsc::Sender<Vec<String>>| async move {
-                use iced::futures::{SinkExt, StreamExt};
-
-                let (tx, mut rx_stream) = iced::futures::channel::mpsc::unbounded::<Vec<String>>();
-
-                let rx_thread = rx.clone();
-                std::thread::spawn(move || {
-                    if let Ok(guard) = rx_thread.lock() {
-                        if let Ok(teams) = guard.recv() {
-                            let _ = tx.unbounded_send(teams);
-                        }
-                    }
-                });
-
-                while let Some(teams) = rx_stream.next().await {
-                    let _ = output.send(teams).await;
-                }
-            },
-        )
-    })
-}
-
 pub(crate) async fn run_installation(
     package: &plume_utils::Package,
     device: Option<&Device>,
     options: &plume_utils::SignerOptions,
     account: Option<&plume_store::GsaAccount>,
     tx: &std::sync::mpsc::Sender<(String, i32)>,
-    team_selection_tx: Option<std::sync::mpsc::Sender<Vec<String>>>,
-    team_selection_rx: Option<std::sync::mpsc::Receiver<Result<usize, String>>>,
 ) -> Result<(), String> {
     use plume_core::{AnisetteConfiguration, CertificateIdentity, developer::DeveloperSession};
     use plume_utils::{Signer, SignerInstallMode, SignerMode};
@@ -273,28 +231,22 @@ pub(crate) async fn run_installation(
                 return Err("No teams available for this account".to_string());
             }
 
-            let team_id = if teams_response.teams.len() == 1 {
+            // Use the stored team_id from the account
+            let team_id = account.team_id();
+
+            // Verify the team_id exists in the available teams
+            if !team_id.is_empty() && !teams_response.teams.iter().any(|t| &t.team_id == team_id) {
+                return Err(format!(
+                    "Stored team ID '{}' not found in available teams. Please update your team selection in Settings.",
+                    team_id
+                ));
+            }
+
+            // If team_id is empty (old accounts), use the first team
+            let team_id = if team_id.is_empty() {
                 &teams_response.teams[0].team_id
             } else {
-                let team_names: Vec<String> = teams_response
-                    .teams
-                    .iter()
-                    .map(|t| format!("{} ({})", t.name, t.team_id))
-                    .collect();
-
-                if let (Some(tx), Some(rx)) = (team_selection_tx, team_selection_rx) {
-                    tx.send(team_names)
-                        .map_err(|_| "Failed to send team selection request".to_string())?;
-
-                    let selected_index = rx
-                        .recv()
-                        .map_err(|_| "Team selection channel closed".to_string())?
-                        .map_err(|e| format!("Team selection error: {}", e))?;
-
-                    &teams_response.teams[selected_index].team_id
-                } else {
-                    &teams_response.teams[0].team_id
-                }
+                team_id
             };
 
             let identity = CertificateIdentity::new_with_session(
@@ -458,12 +410,22 @@ pub(crate) async fn export_certificate(account: plume_store::GsaAccount) -> Resu
         return Err("No teams available for this account".to_string());
     }
 
-    let team_id = if teams_response.teams.len() == 1 {
+    // Use the stored team_id from the account
+    let team_id = account.team_id();
+
+    // Verify the team_id exists in the available teams
+    if !team_id.is_empty() && !teams_response.teams.iter().any(|t| &t.team_id == team_id) {
+        return Err(format!(
+            "Stored team ID '{}' not found in available teams. Please update your team selection in Settings.",
+            team_id
+        ));
+    }
+
+    // If team_id is empty (old accounts), use the first team
+    let team_id = if team_id.is_empty() {
         &teams_response.teams[0].team_id
     } else {
-        // Multiple teams - for export_certificate, just use the first one for now
-        // TODO: Add team selection support for export_certificate
-        &teams_response.teams[0].team_id
+        team_id
     };
 
     let identity = CertificateIdentity::new_with_session(
@@ -503,4 +465,29 @@ pub(crate) async fn export_certificate(account: plume_store::GsaAccount) -> Resu
     }
 
     Ok(())
+}
+
+pub(crate) async fn fetch_teams(
+    account: &plume_store::GsaAccount,
+) -> Result<Vec<crate::screen::settings::Team>, String> {
+    use plume_core::{AnisetteConfiguration, developer::DeveloperSession};
+
+    let session = DeveloperSession::new(
+        account.adsid().clone(),
+        account.xcode_gs_token().clone(),
+        AnisetteConfiguration::default().set_configuration_path(crate::defaults::get_data_path()),
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let teams_response = session.qh_list_teams().await.map_err(|e| e.to_string())?;
+
+    Ok(teams_response
+        .teams
+        .into_iter()
+        .map(|t| crate::screen::settings::Team {
+            name: t.name,
+            id: t.team_id,
+        })
+        .collect())
 }

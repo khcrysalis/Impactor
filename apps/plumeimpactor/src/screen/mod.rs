@@ -1,11 +1,10 @@
 pub(crate) mod general;
 mod package;
 mod progress;
-mod settings;
+pub(crate) mod settings;
 mod utilties;
 mod windows;
 
-use iced::Alignment::Center;
 use iced::Length::Fill;
 use iced::widget::{button, container, pick_list, row, text};
 use iced::window;
@@ -17,7 +16,7 @@ use plume_utils::{Device, SignerOptions};
 use crate::subscriptions;
 use crate::tray::ImpactorTray;
 use crate::{appearance, defaults};
-use windows::{login_window, team_selection_window};
+use windows::login_window;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -46,10 +45,6 @@ pub enum Message {
     // Login window
     LoginWindowMessage(window::Id, login_window::Message),
 
-    // Team selection window
-    TeamSelectionWindowMessage(window::Id, team_selection_window::Message),
-    TeamSelectionRequested(Vec<String>),
-
     // Screen-specific messages
     MainScreen(general::Message),
     UtilitiesScreen(utilties::Message),
@@ -70,11 +65,6 @@ pub struct Impactor {
     main_window: Option<window::Id>,
     account_store: Option<AccountStore>,
     login_windows: std::collections::HashMap<window::Id, login_window::LoginWindow>,
-    team_selection_windows:
-        std::collections::HashMap<window::Id, team_selection_window::TeamSelectionWindow>,
-    team_selection_listener:
-        Option<std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<Vec<String>>>>>,
-    team_response_sender: Option<std::sync::mpsc::Sender<Result<usize, String>>>,
     pending_installation: bool,
 }
 
@@ -110,9 +100,6 @@ impl Impactor {
                 main_window: Some(id),
                 account_store: Some(Self::init_account_store_sync()),
                 login_windows: std::collections::HashMap::new(),
-                team_selection_windows: std::collections::HashMap::new(),
-                team_selection_listener: None,
-                team_response_sender: None,
                 pending_installation: false,
             },
             open_task.discard(),
@@ -285,10 +272,8 @@ impl Impactor {
                         self.account_store = Some(Self::init_account_store_sync());
 
                         if let ImpactorScreen::Settings(_) = self.current_screen {
-                            let account_store = Some(Self::init_account_store_sync());
-                            self.current_screen = ImpactorScreen::Settings(
-                                settings::SettingsScreen::new(account_store),
-                            );
+                            self.current_screen =
+                                ImpactorScreen::Settings(settings::SettingsScreen::new());
                         }
 
                         if self.pending_installation {
@@ -310,45 +295,6 @@ impl Impactor {
                 } else {
                     Task::none()
                 }
-            }
-            Message::TeamSelectionWindowMessage(id, msg) => {
-                if let Some(team_window) = self.team_selection_windows.get_mut(&id) {
-                    let task = team_window.update(msg.clone());
-
-                    match msg {
-                        team_selection_window::Message::Confirm => {
-                            if let Some(selected_index) = team_window.selected_index {
-                                self.team_selection_windows.remove(&id);
-
-                                if let Some(ref sender) = self.team_response_sender {
-                                    let _ = sender.send(Ok(selected_index));
-                                }
-
-                                return window::close(id);
-                            }
-                            task.map(move |msg| Message::TeamSelectionWindowMessage(id, msg))
-                        }
-                        team_selection_window::Message::Cancel => {
-                            self.team_selection_windows.remove(&id);
-
-                            if let Some(ref sender) = self.team_response_sender {
-                                let _ = sender.send(Err("Team selection cancelled".to_string()));
-                            }
-
-                            window::close(id)
-                        }
-                        _ => task.map(move |msg| Message::TeamSelectionWindowMessage(id, msg)),
-                    }
-                } else {
-                    Task::none()
-                }
-            }
-            Message::TeamSelectionRequested(team_names) => {
-                let (window_id, open_window) =
-                    window::open(team_selection_window::TeamSelectionWindow::settings());
-                let team_window = team_selection_window::TeamSelectionWindow::new(team_names);
-                self.team_selection_windows.insert(window_id, team_window);
-                open_window.discard()
             }
             Message::MainScreen(msg) => {
                 if let ImpactorScreen::Main(ref mut screen) = self.current_screen {
@@ -389,11 +335,96 @@ impl Impactor {
                             self.login_windows.insert(id, login_window);
                             task.map(move |msg| Message::LoginWindowMessage(id, msg))
                         }
-                        _ => {
-                            let task = screen.update(msg);
-                            self.account_store = Some(Self::init_account_store_sync());
-                            task.map(Message::SettingsScreen)
+                        settings::Message::SelectAccount(index) => {
+                            if let Some(store) = &mut self.account_store {
+                                let mut emails: Vec<_> = store.accounts().keys().cloned().collect();
+                                emails.sort();
+                                if let Some(email) = emails.get(index) {
+                                    let _ = store.account_select_sync(email);
+                                }
+                            }
+                            Task::none()
                         }
+                        settings::Message::RemoveAccount(index) => {
+                            if let Some(store) = &mut self.account_store {
+                                let mut emails: Vec<_> = store.accounts().keys().cloned().collect();
+                                emails.sort();
+                                if let Some(email) = emails.get(index) {
+                                    let _ = store.accounts_remove_sync(email);
+                                }
+                            }
+                            Task::none()
+                        }
+                        settings::Message::ExportP12 => {
+                            if let Some(account) = self
+                                .account_store
+                                .as_ref()
+                                .and_then(|s| s.selected_account().cloned())
+                            {
+                                std::thread::spawn(move || {
+                                    let rt = tokio::runtime::Builder::new_current_thread()
+                                        .enable_all()
+                                        .build()
+                                        .unwrap();
+
+                                    let _ = rt.block_on(async move {
+                                        crate::subscriptions::export_certificate(account).await
+                                    });
+                                });
+                            }
+                            Task::none()
+                        }
+                        settings::Message::FetchTeams(ref email) => {
+                            if let Some(account_store) = &self.account_store {
+                                if let Some(account) = account_store.accounts().get(email) {
+                                    let account_clone = account.clone();
+                                    let email_clone = email.clone();
+
+                                    return Task::perform(
+                                        async move {
+                                            let (tx, rx) = std::sync::mpsc::channel();
+
+                                            std::thread::spawn(move || {
+                                                let rt = tokio::runtime::Runtime::new().unwrap();
+                                                let result = rt.block_on(async move {
+                                                    crate::subscriptions::fetch_teams(
+                                                        &account_clone,
+                                                    )
+                                                    .await
+                                                    .unwrap_or_else(|e| {
+                                                        eprintln!("Failed to fetch teams: {}", e);
+                                                        Vec::new()
+                                                    })
+                                                });
+                                                let _ = tx.send(result);
+                                            });
+
+                                            rx.recv().unwrap_or_default()
+                                        },
+                                        move |teams| {
+                                            Message::SettingsScreen(settings::Message::TeamsLoaded(
+                                                email_clone,
+                                                teams,
+                                            ))
+                                        },
+                                    );
+                                }
+                            }
+                            screen.update(msg).map(Message::SettingsScreen)
+                        }
+                        settings::Message::SelectTeam(ref email, ref team_id) => {
+                            if let Some(store) = &mut self.account_store {
+                                if let Err(e) =
+                                    store.update_account_team_sync(email, team_id.clone())
+                                {
+                                    eprintln!("Failed to update team: {:?}", e);
+                                } else {
+                                    self.account_store = Some(Self::init_account_store_sync());
+                                }
+                            }
+                            screen.update(msg).map(Message::SettingsScreen)
+                        }
+                        _ => screen.update(msg).map(Message::SettingsScreen),
                     }
                 } else {
                     Task::none()
@@ -473,13 +504,6 @@ impl Impactor {
                 Subscription::none()
             };
 
-        let team_selection_subscription = if let Some(ref listener) = self.team_selection_listener {
-            subscriptions::team_selection_listener(listener.clone())
-                .map(Message::TeamSelectionRequested)
-        } else {
-            Subscription::none()
-        };
-
         let close_subscription = iced::event::listen_with(|event, _status, _id| {
             if let iced::Event::Window(window::Event::CloseRequested) = event {
                 return Some(Message::HideWindow);
@@ -492,7 +516,6 @@ impl Impactor {
             tray_subscription,
             hover_subscription,
             progress_subscription,
-            team_selection_subscription,
             close_subscription,
         ])
     }
@@ -504,12 +527,6 @@ impl Impactor {
             return login_window
                 .view()
                 .map(move |msg| Message::LoginWindowMessage(window_id, msg));
-        }
-
-        if let Some(team_window) = self.team_selection_windows.get(&window_id) {
-            return team_window
-                .view()
-                .map(move |msg| Message::TeamSelectionWindowMessage(window_id, msg));
         }
 
         let has_device = self.selected_device.is_some();
@@ -525,7 +542,9 @@ impl Impactor {
         match &self.current_screen {
             ImpactorScreen::Main(screen) => screen.view().map(Message::MainScreen),
             ImpactorScreen::Utilities(screen) => screen.view().map(Message::UtilitiesScreen),
-            ImpactorScreen::Settings(screen) => screen.view().map(Message::SettingsScreen),
+            ImpactorScreen::Settings(screen) => screen
+                .view(&self.account_store)
+                .map(Message::SettingsScreen),
             ImpactorScreen::Installer(screen) => {
                 screen.view(has_device).map(Message::InstallerScreen)
             }
@@ -542,15 +561,15 @@ impl Impactor {
             .unwrap_or("No Device");
 
         let right_button = if matches!(self.current_screen, ImpactorScreen::Settings(_)) {
-            button(text("←").align_x(Center))
+            button(appearance::icon(appearance::CHEVRON_BACK))
                 .on_press(Message::PreviousScreen)
                 .style(appearance::s_button)
         } else if matches!(self.current_screen, ImpactorScreen::Utilities(_)) {
-            button(text("←").align_x(Center))
+            button(appearance::icon(appearance::CHEVRON_BACK))
                 .on_press(Message::PreviousScreen)
                 .style(appearance::s_button)
         } else {
-            button(text("≡").align_x(Center))
+            button(appearance::icon(appearance::GEAR))
                 .style(appearance::s_button)
                 .on_press(Message::NavigateToScreen(ImpactorScreenType::Settings))
         };
@@ -585,9 +604,7 @@ impl Impactor {
                 ));
             }
             ImpactorScreenType::Settings => {
-                let account_store = Some(Self::init_account_store_sync());
-                self.current_screen =
-                    ImpactorScreen::Settings(settings::SettingsScreen::new(account_store));
+                self.current_screen = ImpactorScreen::Settings(settings::SettingsScreen::new());
             }
             ImpactorScreenType::Progress => {
                 self.current_screen = ImpactorScreen::Progress(progress::ProgressScreen::new());
@@ -612,14 +629,6 @@ impl Impactor {
             let (tx, rx) = std::sync::mpsc::channel();
             let progress_rx = std::sync::Arc::new(std::sync::Mutex::new(rx));
 
-            let (team_tx, team_rx) = std::sync::mpsc::channel::<Vec<String>>();
-            let (team_response_tx, team_response_rx) =
-                std::sync::mpsc::channel::<Result<usize, String>>();
-
-            self.team_selection_listener =
-                Some(std::sync::Arc::new(std::sync::Mutex::new(team_rx)));
-            self.team_response_sender = Some(team_response_tx);
-
             let mut progress_screen = progress::ProgressScreen::new();
             progress_screen.start_installation(progress_rx.clone());
             self.current_screen = ImpactorScreen::Progress(progress_screen);
@@ -634,8 +643,6 @@ impl Impactor {
                         &options,
                         account.as_ref(),
                         &tx,
-                        Some(team_tx),
-                        Some(team_response_rx),
                     )
                     .await
                     {

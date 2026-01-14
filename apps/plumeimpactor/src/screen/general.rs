@@ -80,10 +80,13 @@ impl GeneralScreen {
         .spacing(10)
         .align_x(Center);
 
-        let footer_links =
-            button(text("Give me a ⭐ star :3").color(Color::from_rgb(1.0, 0.75, 0.8)))
-                .on_press(Message::OpenGitHub)
-                .style(iced::widget::button::text);
+        let footer_links = button(appearance::icon_text(
+            appearance::STAR,
+            "Star us on GitHub!",
+            Some(Color::from_rgb(1.0, 0.75, 0.8)),
+        ))
+        .on_press(Message::OpenGitHub)
+        .style(iced::widget::button::text);
 
         column![
             container(screen_content).center(Fill).height(Fill),
@@ -96,14 +99,18 @@ impl GeneralScreen {
     fn view_buttons(&self) -> Element<'_, Message> {
         container(
             row![
-                button(text("Device Utilities").align_x(Center))
+                button(appearance::icon_text(appearance::WRENCH, "Utilities", None))
                     .on_press(Message::NavigateToUtilities)
                     .width(Fill)
                     .style(appearance::s_button),
-                button(text("Import .ipa / .tipa").align_x(Center))
-                    .on_press(Message::OpenFileDialog)
-                    .width(Fill)
-                    .style(appearance::s_button)
+                button(appearance::icon_text(
+                    appearance::DOWNLOAD,
+                    "Import .ipa / .tipa",
+                    None
+                ))
+                .on_press(Message::OpenFileDialog)
+                .width(Fill)
+                .style(appearance::s_button)
             ]
             .spacing(appearance::THEME_PADDING),
         )

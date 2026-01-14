@@ -115,9 +115,14 @@ impl ProgressScreen {
 
     fn view_buttons(&self) -> Element<'_, Message> {
         container(row![
-            button(text("Back"))
-                .on_press_maybe((!self.is_installing).then_some(Message::Back))
-                .style(appearance::s_button)
+            button(appearance::icon_text(
+                appearance::CHEVRON_BACK,
+                "Back",
+                None
+            ))
+            .on_press_maybe((!self.is_installing).then_some(Message::Back))
+            .width(Fill)
+            .style(appearance::s_button)
         ])
         .width(Fill)
         .into()
