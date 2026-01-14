@@ -31,11 +31,17 @@ impl GeneralScreen {
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::OpenFileDialog => {
-                let path = rfd::FileDialog::new()
-                    .add_filter("iOS App Package", &["ipa", "tipa"])
-                    .set_title("Select IPA/TIPA file")
-                    .pick_file();
-                Task::done(Message::FileSelected(path))
+                return Task::perform(
+                    async {
+                        rfd::AsyncFileDialog::new()
+                            .add_filter("iOS App Package", &["ipa", "tipa"])
+                            .set_title("Select IPA/TIPA file")
+                            .pick_file()
+                            .await
+                            .map(|file| file.path().to_path_buf())
+                    },
+                    Message::FileSelected,
+                );
             }
             Message::FileSelected(path) => {
                 if let Some(path) = path {
