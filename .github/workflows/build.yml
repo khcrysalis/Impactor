@@ -137,14 +137,26 @@ jobs:
           target_env=$(echo "${{ matrix.target }}" | tr '-' '_')
           prefix="${{ matrix.osxcross_prefix }}"
           osxcross_bin="$(dirname "$(command -v "${prefix}-clang")")"
-          export PATH="${osxcross_bin}:${PATH}"
+          ld_candidate=""
+          for name in "${prefix}-ld" "${prefix}-ld64" "ld64" "ld"; do
+            if [ -x "${osxcross_bin}/${name}" ]; then
+              ld_candidate="${osxcross_bin}/${name}"
+              break
+            fi
+          done
+          toolchain_bin="$(mktemp -d)"
+          if [ -n "${ld_candidate}" ]; then
+            ln -s "${ld_candidate}" "${toolchain_bin}/ld"
+            ln -s "${ld_candidate}" "${toolchain_bin}/ld64"
+          fi
+          export PATH="${toolchain_bin}:${osxcross_bin}:${PATH}"
           export "CC_${target_env}=${osxcross_bin}/${prefix}-clang"
           export "CXX_${target_env}=${osxcross_bin}/${prefix}-clang++"
           export "AR_${target_env}=${osxcross_bin}/${prefix}-ar"
           export "RANLIB_${target_env}=${osxcross_bin}/${prefix}-ranlib"
-          export "CFLAGS_${target_env}=-B${osxcross_bin}"
-          export "CXXFLAGS_${target_env}=-B${osxcross_bin}"
-          export "LDFLAGS_${target_env}=-B${osxcross_bin}"
+          export "CFLAGS_${target_env}=-B${toolchain_bin} -B${osxcross_bin} -fuse-ld=ld64"
+          export "CXXFLAGS_${target_env}=-B${toolchain_bin} -B${osxcross_bin} -fuse-ld=ld64"
+          export "LDFLAGS_${target_env}=-B${toolchain_bin} -B${osxcross_bin} -fuse-ld=ld64"
           cargo build --bins --workspace --release --target ${{ matrix.target }}
           mkdir -p dist
           cp target/${{ matrix.target }}/release/plumeimpactor dist/plumeimpactor-macos-${{ matrix.suffix }}
