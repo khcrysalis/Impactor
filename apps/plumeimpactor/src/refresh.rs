@@ -29,25 +29,8 @@ impl RefreshDaemon {
         }
     }
 
-    pub fn with_check_interval(mut self, interval: Duration) -> Self {
-        self.check_interval = interval;
-        self
-    }
-
     pub fn connected_devices(&self) -> ConnectedDevices {
         self.connected_devices.clone()
-    }
-
-    pub fn update_device(&self, device: Device) {
-        if let Ok(mut devices) = self.connected_devices.lock() {
-            devices.insert(device.udid.clone(), device);
-        }
-    }
-
-    pub fn remove_device(&self, udid: &str) {
-        if let Ok(mut devices) = self.connected_devices.lock() {
-            devices.remove(udid);
-        }
     }
 
     pub fn spawn(self) -> thread::JoinHandle<()> {

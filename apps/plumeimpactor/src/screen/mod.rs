@@ -825,7 +825,7 @@ impl Impactor {
                 });
             });
 
-            Task::done(Message::UpdateTrayMenu)
+            Task::none()
         } else {
             Task::none()
         }
