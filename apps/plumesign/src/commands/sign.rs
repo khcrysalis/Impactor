@@ -149,7 +149,7 @@ pub async fn execute(args: SignArgs) -> Result<()> {
                 .await?;
         }
 
-        signer.register_bundle(&bundle, &session, &team_id).await?;
+        signer.register_bundle(&bundle, &session, &team_id, false).await?;
         signer.sign_bundle(&bundle).await?;
 
         if let Some(dev) = device {
@@ -191,7 +191,7 @@ pub async fn execute(args: SignArgs) -> Result<()> {
 
     if let Some(pkg) = package {
         if let Some(output_path) = args.output {
-            let archived_path = pkg.get_archive_based_on_path(args.package.clone())?;
+            let archived_path = pkg.get_archive_based_on_path(&args.package.clone())?;
             tokio::fs::copy(&archived_path, &output_path).await?;
             log::info!("Saved signed package to: {}", output_path.display());
             pkg.remove_package_stage();
