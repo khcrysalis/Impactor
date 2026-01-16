@@ -369,6 +369,7 @@ pub(crate) async fn run_installation(
 
                     let refresh_app = plume_store::RefreshApp {
                         name: package_file.get_name(),
+                        bundle_id: package_file.get_bundle_identifier(),
                         path: dest_path.clone(),
                         scheduled_refresh,
                     };

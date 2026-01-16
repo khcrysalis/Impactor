@@ -146,16 +146,23 @@ impl RefreshDaemon {
             identity.new
         };
 
-        if device.is_mac {
-            println!("Mac device - updating provisioning profiles only...");
-            self.update_provisioning_profiles(app, device, &session, team_id)
-                .await?;
-        } else if identity_is_new {
-            println!("Certificate is new, resigning and reinstalling app...");
+        let is_installed = if let Some(bundle_id) = app.bundle_id.as_deref() {
+            device
+                .is_app_installed(bundle_id)
+                .await
+                .map_err(|e| format!("Failed to check if app is installed: {}", e))?
+        } else {
+            false
+        };
+
+        let needs_reinstall = device.is_mac || identity_is_new || !is_installed;
+
+        if needs_reinstall {
+            println!("Resigning and reinstalling app...");
             self.resign_and_reinstall(app, device, &session, team_id)
                 .await?;
         } else {
-            println!("Certificate exists, updating provisioning profiles...");
+            println!("Certificate exists and app is installed, updating provisioning profiles...");
             self.update_provisioning_profiles(app, device, &session, team_id)
                 .await?;
         }

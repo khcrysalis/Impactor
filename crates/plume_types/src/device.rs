@@ -96,6 +96,23 @@ impl Device {
         Ok(found_apps)
     }
 
+    pub async fn is_app_installed(&self, bundle_id: &str) -> Result<bool, Error> {
+        let device = match &self.usbmuxd_device {
+            Some(dev) => dev,
+            None => return Err(Error::Other("Device is not connected via USB".to_string())),
+        };
+
+        let provider = device.to_provider(
+            UsbmuxdAddr::from_env_var().unwrap_or_default(),
+            INSTALLATION_LABEL,
+        );
+
+        let mut ic = InstallationProxyClient::connect(&provider).await?;
+        let apps = ic.get_apps(Some("User"), None).await?;
+
+        Ok(apps.contains_key(bundle_id))
+    }
+
     pub async fn install_profile(&self, profile: &MobileProvision) -> Result<(), Error> {
         if self.usbmuxd_device.is_none() {
             return Err(Error::Other("Device is not connected via USB".to_string()));

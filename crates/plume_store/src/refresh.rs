@@ -16,7 +16,10 @@ pub struct RefreshDevice {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RefreshApp {
     pub path: PathBuf,
+    #[serde(default)]
     pub name: Option<String>,
+    #[serde(default)]
+    pub bundle_id: Option<String>,
     pub scheduled_refresh: DateTime<Utc>, // the scheduled refresh time will happen a day before expiration
 }
 
