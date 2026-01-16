@@ -350,7 +350,8 @@ impl Impactor {
                     let task = screen.update(msg.clone()).map(Message::MainScreen);
 
                     if let general::Message::NavigateToInstaller(package) = msg {
-                        let options = SignerOptions::default();
+                        let mut options = SignerOptions::default();
+                        package.load_into_signer_options(&mut options);
                         self.current_screen = ImpactorScreen::Installer(
                             package::PackageScreen::new(Some(package), options),
                         );
