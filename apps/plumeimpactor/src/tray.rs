@@ -54,10 +54,8 @@ impl ImpactorTray {
 
         let _ = tray_menu.append_items(&[&show_item, &PredefinedMenuItem::separator(), &quit_item]);
 
-        // Do not build the tray icon here to avoid a double registration
-        // during startup: `update_refresh_apps` will create the icon once.
         Self {
-            icon: None,
+            icon: Some(build_tray_icon(&tray_menu)),
             menu: tray_menu,
             show_item_id,
             quit_item_id,
@@ -148,16 +146,11 @@ impl ImpactorTray {
 
         log::info!("Rebuilding tray icon with new menu");
 
-        if let Some(old_icon) = self.icon.take() {
-            drop(old_icon);
-        }
-
-        let new_icon = build_tray_icon(&new_menu);
-        self.icon = Some(new_icon);
-
         self.menu = new_menu;
         self.action_map = action_map;
-        log::info!("Tray menu updated successfully");
+        if let Some(tray_icon) = &mut self.icon {
+            let _ = tray_icon.set_menu(Some(Box::new(self.menu.clone())));
+        }
     }
 
     pub(crate) fn get_action(&self, id: &MenuId) -> Option<&TrayAction> {
