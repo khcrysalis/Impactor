@@ -149,7 +149,9 @@ pub async fn execute(args: SignArgs) -> Result<()> {
                 .await?;
         }
 
-        signer.register_bundle(&bundle, &session, &team_id, false).await?;
+        signer
+            .register_bundle(&bundle, &session, &team_id, false)
+            .await?;
         signer.sign_bundle(&bundle).await?;
 
         if let Some(dev) = device {
