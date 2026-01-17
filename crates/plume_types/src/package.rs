@@ -86,7 +86,7 @@ impl Package {
         Ok(Bundle::new(app_dir)?)
     }
 
-    pub fn get_archive_based_on_path(&self, path: PathBuf) -> Result<PathBuf, Error> {
+    pub fn get_archive_based_on_path(&self, path: &PathBuf) -> Result<PathBuf, Error> {
         if path.is_dir() {
             self.clone().archive_package_bundle()
         } else {

@@ -273,7 +273,8 @@ impl LoginWindow {
             } else {
                 Some(Message::TwoFactorSubmit)
             })
-            .style(appearance::p_button),
+            .style(appearance::p_button)
+            .padding(8),
         ]
         .spacing(appearance::THEME_PADDING);
 

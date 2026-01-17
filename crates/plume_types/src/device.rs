@@ -4,14 +4,17 @@ use std::path::{Component, Path, PathBuf};
 use idevice::IdeviceService;
 use idevice::installation_proxy::InstallationProxyClient;
 use idevice::lockdown::LockdownClient;
+use idevice::misagent::MisagentClient;
 use idevice::usbmuxd::{Connection, UsbmuxdAddr, UsbmuxdDevice};
 use idevice::utils::installation;
+use plume_core::MobileProvision;
 
 use crate::Error;
 use crate::options::SignerAppReal;
 use idevice::afc::opcode::AfcFopenMode;
 use idevice::house_arrest::HouseArrestClient;
 use idevice::usbmuxd::UsbmuxdConnection;
+use plist::Value;
 
 pub const CONNECTION_LABEL: &str = "plume_info";
 pub const INSTALLATION_LABEL: &str = "plume_install";
@@ -78,8 +81,12 @@ impl Device {
 
         let mut found_apps = Vec::new();
 
-        for (bundle_id, _) in apps {
-            let signer_app = SignerAppReal::from_bundle_identifier(Some(bundle_id.as_str()));
+        for (bundle_id, info) in apps {
+            let app_name = get_app_name_from_info(&info);
+            let signer_app = SignerAppReal::from_bundle_identifier_and_name(
+                Some(bundle_id.as_str()),
+                app_name.as_deref(),
+            );
 
             if signer_app.app.supports_pairing_file_alt() {
                 found_apps.push(signer_app);
@@ -87,6 +94,39 @@ impl Device {
         }
 
         Ok(found_apps)
+    }
+
+    pub async fn is_app_installed(&self, bundle_id: &str) -> Result<bool, Error> {
+        let device = match &self.usbmuxd_device {
+            Some(dev) => dev,
+            None => return Err(Error::Other("Device is not connected via USB".to_string())),
+        };
+
+        let provider = device.to_provider(
+            UsbmuxdAddr::from_env_var().unwrap_or_default(),
+            INSTALLATION_LABEL,
+        );
+
+        let mut ic = InstallationProxyClient::connect(&provider).await?;
+        let apps = ic.get_apps(Some("User"), None).await?;
+
+        Ok(apps.contains_key(bundle_id))
+    }
+
+    pub async fn install_profile(&self, profile: &MobileProvision) -> Result<(), Error> {
+        if self.usbmuxd_device.is_none() {
+            return Err(Error::Other("Device is not connected via USB".to_string()));
+        }
+
+        let provider = self.usbmuxd_device.clone().unwrap().to_provider(
+            UsbmuxdAddr::from_env_var().unwrap_or_default(),
+            INSTALLATION_LABEL,
+        );
+
+        let mut mc = MisagentClient::connect(&provider).await?;
+        mc.install(profile.data.clone()).await?;
+
+        Ok(())
     }
 
     pub async fn pair(&self) -> Result<(), Error> {
@@ -204,6 +244,18 @@ impl Device {
     }
 }
 
+fn get_app_name_from_info(info: &Value) -> Option<String> {
+    let dict = info.as_dictionary()?;
+    dict.get("CFBundleDisplayName")
+        .and_then(|value| value.as_string())
+        .or_else(|| dict.get("CFBundleName").and_then(|value| value.as_string()))
+        .or_else(|| {
+            dict.get("CFBundleExecutable")
+                .and_then(|value| value.as_string())
+        })
+        .map(|value| value.to_string())
+}
+
 impl fmt::Display for Device {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -272,7 +324,13 @@ pub async fn install_app_mac(app_path: &PathBuf) -> Result<(), Error> {
     )
     .await?;
 
-    let applications_dir = PathBuf::from("/Applications").join(app_name);
+    let applications_dir = PathBuf::from("/Applications/iOS");
+    fs::create_dir_all(&applications_dir).await?;
+
+    let applications_dir = applications_dir.join(app_name);
+
+    fs::remove_dir_all(&applications_dir).await.ok();
+
     fs::rename(&outer_app_dir, &applications_dir)
         .await
         .map_err(|_| Error::BundleFailedToCopy(applications_dir.to_string_lossy().into_owned()))?;

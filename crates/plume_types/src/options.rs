@@ -19,6 +19,8 @@ pub struct SignerOptions {
     pub tweaks: Option<Vec<std::path::PathBuf>>,
     /// App type.
     pub app: SignerApp,
+    /// Apply autorefresh
+    pub refresh: bool,
 }
 
 impl Default for SignerOptions {
@@ -33,6 +35,7 @@ impl Default for SignerOptions {
             install_mode: SignerInstallMode::default(),
             tweaks: None,
             app: SignerApp::Default,
+            refresh: false,
         }
     }
 }
@@ -63,6 +66,7 @@ pub struct SignerFeatures {
     pub support_game_mode: bool,
     pub support_pro_motion: bool,
     pub support_liquid_glass: bool,
+    pub support_ellekit: bool,
     pub remove_url_schemes: bool,
 }
 
@@ -130,6 +134,14 @@ impl SignerAppReal {
             bundle_id: identifier.map(|s| s.to_string()),
         }
     }
+
+    pub fn from_bundle_identifier_and_name(identifier: Option<&str>, name: Option<&str>) -> Self {
+        let app = SignerApp::from_bundle_identifier_or_name(identifier, name);
+        Self {
+            app,
+            bundle_id: identifier.map(|s| s.to_string()),
+        }
+    }
 }
 
 /// Supported app types.
@@ -185,6 +197,46 @@ impl SignerApp {
 
         for &(known_id, app) in KNOWN_APPS {
             if id.contains(known_id) {
+                return app;
+            }
+        }
+
+        SignerApp::Default
+    }
+
+    pub fn from_bundle_identifier_or_name(
+        identifier: Option<impl AsRef<str>>,
+        name: Option<impl AsRef<str>>,
+    ) -> Self {
+        let app = Self::from_bundle_identifier(identifier);
+        if app != SignerApp::Default {
+            return app;
+        }
+
+        let name = match name {
+            Some(name) => name.as_ref().to_owned(),
+            None => return SignerApp::Default,
+        };
+
+        let normalized = name
+            .to_ascii_lowercase()
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric())
+            .collect::<String>();
+
+        const KNOWN_APP_NAMES: &[(&str, SignerApp)] = &[
+            ("livecontainer", SignerApp::LiveContainer),
+            ("sidestore", SignerApp::SideStore),
+            ("altstore", SignerApp::AltStore),
+            ("feather", SignerApp::Feather),
+            ("antrag", SignerApp::Antrag),
+            ("protokolle", SignerApp::Protokolle),
+            ("stikdebug", SignerApp::StikDebug),
+            ("sparsebox", SignerApp::SparseBox),
+        ];
+
+        for &(needle, app) in KNOWN_APP_NAMES {
+            if normalized.contains(needle) {
                 return app;
             }
         }

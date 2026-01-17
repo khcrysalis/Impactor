@@ -6,7 +6,7 @@ use crate::appearance;
 use std::sync::OnceLock;
 
 const INSTALL_IMAGE: &[u8] = include_bytes!("./general.png");
-const INSTALL_IMAGE_HEIGHT: f32 = 100.0;
+const INSTALL_IMAGE_HEIGHT: f32 = 130.0;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -31,11 +31,17 @@ impl GeneralScreen {
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::OpenFileDialog => {
-                let path = rfd::FileDialog::new()
-                    .add_filter("iOS App Package", &["ipa", "tipa"])
-                    .set_title("Select IPA/TIPA file")
-                    .pick_file();
-                Task::done(Message::FileSelected(path))
+                return Task::perform(
+                    async {
+                        rfd::AsyncFileDialog::new()
+                            .add_filter("iOS App Package", &["ipa", "tipa"])
+                            .set_title("Select IPA/TIPA file")
+                            .pick_file()
+                            .await
+                            .map(|file| file.path().to_path_buf())
+                    },
+                    Message::FileSelected,
+                );
             }
             Message::FileSelected(path) => {
                 if let Some(path) = path {
@@ -70,12 +76,23 @@ impl GeneralScreen {
         let image_handle =
             INSTALL_IMAGE_HANDLE.get_or_init(|| image::Handle::from_bytes(INSTALL_IMAGE));
 
-        let screen_content = image(image_handle.clone()).height(INSTALL_IMAGE_HEIGHT);
+        let screen_content = column![
+            container(text("")).height(appearance::THEME_PADDING * 2.0),
+            image(image_handle.clone()).height(INSTALL_IMAGE_HEIGHT),
+            text("Drag & drop an IPA here")
+                .size(appearance::THEME_FONT_SIZE + 7.0)
+                .color(Color::from_rgba(1.0, 1.0, 1.0, 0.3))
+        ]
+        .spacing(10)
+        .align_x(Center);
 
-        let footer_links =
-            button(text("Give me a ⭐ star :3").color(Color::from_rgb(1.0, 0.75, 0.8)))
-                .on_press(Message::OpenGitHub)
-                .style(iced::widget::button::text);
+        let footer_links = button(appearance::icon_text(
+            appearance::STAR,
+            "Star us on GitHub!",
+            Some(Color::from_rgb(1.0, 0.75, 0.8)),
+        ))
+        .on_press(Message::OpenGitHub)
+        .style(iced::widget::button::text);
 
         column![
             container(screen_content).center(Fill).height(Fill),
@@ -88,14 +105,18 @@ impl GeneralScreen {
     fn view_buttons(&self) -> Element<'_, Message> {
         container(
             row![
-                button(text("Device Utilities").align_x(Center))
+                button(appearance::icon_text(appearance::WRENCH, "Utilities", None))
                     .on_press(Message::NavigateToUtilities)
                     .width(Fill)
                     .style(appearance::s_button),
-                button(text("Import .ipa / .tipa").align_x(Center))
-                    .on_press(Message::OpenFileDialog)
-                    .width(Fill)
-                    .style(appearance::s_button)
+                button(appearance::icon_text(
+                    appearance::DOWNLOAD,
+                    "Import .ipa / .tipa",
+                    None
+                ))
+                .on_press(Message::OpenFileDialog)
+                .width(Fill)
+                .style(appearance::s_button)
             ]
             .spacing(appearance::THEME_PADDING),
         )

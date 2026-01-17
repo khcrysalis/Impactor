@@ -11,6 +11,7 @@ pub(crate) fn default_settings() -> iced::Settings {
     iced::Settings {
         default_font: appearance::p_font(),
         default_text_size: appearance::THEME_FONT_SIZE.into(),
+        fonts: appearance::load_fonts(),
         ..Default::default()
     }
 }
@@ -28,7 +29,7 @@ pub(crate) fn default_window_settings() -> window::Settings {
     let platform_specific = window::settings::PlatformSpecific::default();
 
     window::Settings {
-        size: iced::Size::new(555.0, 300.0),
+        size: iced::Size::new(575.0, 410.0),
         position: window::Position::Centered,
         exit_on_close_request: false,
         resizable: false,

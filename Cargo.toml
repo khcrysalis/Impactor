@@ -32,15 +32,7 @@ incremental = true          # Improves re-compile times
 tokio = { version = "1.43", features = ["full"] }
 # Application
 idevice = { git = "https://github.com/PlumeImpactor/plume-idevice", rev = "5e350a", features = [
-    "afc",
-    "installation_proxy",
-    "debug_proxy",
-    "rsd",
-    "tunnel_tcp_stack",
-    "heartbeat",
-    "usbmuxd",
-    "house_arrest",
-    "pair",
+    "full"
 ] }
 plist = "1.8.0"
 

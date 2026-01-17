@@ -13,3 +13,4 @@ plume_core = { path = "../plume_core", features = ["tweaks"] }
 # TODO: move this to workspace
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
+chrono = { version = "0.4.42", features = ["serde"] }

@@ -1,7 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use crate::refresh::spawn_refresh_daemon;
+
 mod appearance;
 mod defaults;
+mod refresh;
 mod screen;
 mod subscriptions;
 mod tray;
@@ -17,6 +20,9 @@ fn main() -> iced::Result {
     {
         gtk::init().expect("GTK init failed");
     }
+
+    let (_daemon_handle, connected_devices) = spawn_refresh_daemon();
+    screen::set_refresh_daemon_devices(connected_devices);
 
     iced::daemon(
         screen::Impactor::new,

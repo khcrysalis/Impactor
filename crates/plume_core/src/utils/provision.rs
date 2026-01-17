@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::Error;
 use crate::utils::TEAM_ID_REGEX;
-use plist::{Dictionary, Value};
+use plist::{Date, Dictionary, Value};
 
 use super::MachO;
 
@@ -11,6 +11,7 @@ use super::MachO;
 pub struct MobileProvision {
     pub data: Vec<u8>,
     entitlements: Dictionary,
+    expiration_date: Date,
 }
 
 impl MobileProvision {
@@ -22,9 +23,13 @@ impl MobileProvision {
     }
 
     pub fn load_with_bytes(data: Vec<u8>) -> Result<Self, Error> {
-        let entitlements = Self::extract_entitlements_from_prov(&data)?;
+        let (entitlements, expiration_date) = Self::extract_entitlements_from_prov(&data)?;
 
-        Ok(Self { data, entitlements })
+        Ok(Self {
+            data,
+            entitlements,
+            expiration_date,
+        })
     }
 
     pub fn merge_entitlements(
@@ -58,6 +63,10 @@ impl MobileProvision {
         &self.entitlements
     }
 
+    pub fn expiration_date(&self) -> &Date {
+        &self.expiration_date
+    }
+
     pub fn entitlements_as_bytes(&self) -> Result<Vec<u8>, Error> {
         let mut buf = Vec::new();
         Value::Dictionary(self.entitlements.clone()).to_writer_xml(&mut buf)?;
@@ -76,7 +85,7 @@ impl MobileProvision {
         Some(bundle_id)
     }
 
-    fn extract_entitlements_from_prov(data: &[u8]) -> Result<Dictionary, Error> {
+    fn extract_entitlements_from_prov(data: &[u8]) -> Result<(Dictionary, Date), Error> {
         let start = data
             .windows(6)
             .position(|w| w == b"<plist")
@@ -89,11 +98,21 @@ impl MobileProvision {
         let plist_data = &data[start..end];
         let plist = plist::Value::from_reader_xml(plist_data)?;
 
-        plist
+        let expiration_date = plist
+            .as_dictionary()
+            .and_then(|d| d.get("ExpirationDate"))
+            .and_then(|v| v.as_date());
+
+        let entitlements = plist
             .as_dictionary()
             .and_then(|d| d.get("Entitlements"))
             .and_then(|v| v.as_dictionary())
             .cloned()
-            .ok_or(Error::ProvisioningEntitlementsUnknown)
+            .ok_or(Error::ProvisioningEntitlementsUnknown);
+
+        Ok((
+            entitlements?,
+            expiration_date.ok_or(Error::ProvisioningEntitlementsUnknown)?,
+        ))
     }
 }

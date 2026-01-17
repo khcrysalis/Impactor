@@ -64,7 +64,7 @@ pub trait PlistInfoTrait {
     fn get_build_version(&self) -> Option<String>;
 }
 
-async fn copy_dir_recursively(src: &Path, dst: &Path) -> Result<(), Error> {
+pub async fn copy_dir_recursively(src: &Path, dst: &Path) -> Result<(), Error> {
     use tokio::fs;
 
     fs::create_dir_all(dst).await?;

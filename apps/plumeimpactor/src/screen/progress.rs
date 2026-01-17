@@ -46,6 +46,14 @@ impl ProgressScreen {
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::InstallationProgress(status, progress) => {
+                let mut status = status;
+                let mut progress = progress;
+
+                if progress >= 100 {
+                    progress = 100;
+                    status = "Finished!".to_string();
+                }
+
                 self.status = status.clone();
                 self.progress = progress;
 
@@ -64,6 +72,8 @@ impl ProgressScreen {
                 } else if progress >= 100 {
                     self.progress_rx = None;
                     self.is_installing = false;
+
+                    return Task::done(Message::InstallationFinished);
                 }
 
                 Task::none()
@@ -115,9 +125,14 @@ impl ProgressScreen {
 
     fn view_buttons(&self) -> Element<'_, Message> {
         container(row![
-            button(text("Back"))
-                .on_press_maybe((!self.is_installing).then_some(Message::Back))
-                .style(appearance::s_button)
+            button(appearance::icon_text(
+                appearance::CHEVRON_BACK,
+                "Back",
+                None
+            ))
+            .on_press_maybe((!self.is_installing).then_some(Message::Back))
+            .width(Fill)
+            .style(appearance::s_button)
         ])
         .width(Fill)
         .into()

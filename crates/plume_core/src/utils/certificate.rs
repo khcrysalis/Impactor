@@ -28,6 +28,7 @@ pub struct CertificateIdentity {
     pub machine_id: Option<String>,
     pub serial_number: Option<String>,
     pub p12_data: Option<Vec<u8>>,
+    pub new: bool,
 }
 
 impl CertificateIdentity {
@@ -39,6 +40,7 @@ impl CertificateIdentity {
             machine_id: None,
             p12_data: None,
             serial_number: None,
+            new: false,
         };
 
         if let Some(paths) = paths {
@@ -61,12 +63,13 @@ impl CertificateIdentity {
 
         let key_path = Self::key_dir(config_path, &team_id)?.join("key.pem");
 
-        let mut cert = Self {
+        let mut identity = Self {
             cert: None,
             key: None,
             machine_id: None,
             p12_data: None,
             serial_number: None,
+            new: false,
         };
 
         // To same some unnecessary requests, we're going to list our certificates first here
@@ -80,30 +83,37 @@ impl CertificateIdentity {
             let key_string = fs::read_to_string(&key_path)?;
             let priv_key = RsaPrivateKey::from_pkcs8_pem(&key_string)?;
 
-            if let Some(cert) = cert
+            if let Some(certificate) = identity
                 .find_certificate(certs.clone(), &priv_key, &machine_name)
                 .await?
             {
-                let cert_pem =
-                    encode_string("CERTIFICATE", LineEnding::LF, cert.cert_content.as_ref())
-                        .unwrap();
+                let cert_pem = encode_string(
+                    "CERTIFICATE",
+                    LineEnding::LF,
+                    certificate.cert_content.as_ref(),
+                )
+                .unwrap();
                 let key_pem = priv_key.to_pkcs8_pem(Default::default())?.to_string();
 
                 [cert_pem.into_bytes(), key_pem.into_bytes()]
             } else {
-                let (cert, priv_key) = cert
+                let (certificate, priv_key) = identity
                     .request_new_certificate(session, team_id, &machine_name, certs)
                     .await?;
-                let cert_pem =
-                    encode_string("CERTIFICATE", LineEnding::LF, cert.cert_content.as_ref())
-                        .unwrap();
+                let cert_pem = encode_string(
+                    "CERTIFICATE",
+                    LineEnding::LF,
+                    certificate.cert_content.as_ref(),
+                )
+                .unwrap();
                 let key_pem = priv_key.to_pkcs8_pem(Default::default())?.to_string();
 
                 fs::write(&key_path, &key_pem)?;
+                identity.new = true;
                 [cert_pem.into_bytes(), key_pem.into_bytes()]
             }
         } else {
-            let (cert, priv_key) = cert
+            let (cert, priv_key) = identity
                 .request_new_certificate(session, team_id, &machine_name, certs)
                 .await?;
             let cert_pem =
@@ -111,19 +121,20 @@ impl CertificateIdentity {
             let key_pem = priv_key.to_pkcs8_pem(Default::default())?.to_string();
 
             fs::write(&key_path, &key_pem)?;
+            identity.new = true;
             [cert_pem.into_bytes(), key_pem.into_bytes()]
         };
 
         // TODO: this may be horrendious
-        if let Some(p12_data) = cert.create_pkcs12(&key_pair) {
-            cert.p12_data = Some(p12_data);
+        if let Some(p12_data) = identity.create_pkcs12(&key_pair) {
+            identity.p12_data = Some(p12_data);
         }
 
         for pem in key_pair {
-            cert.resolve_certificate_from_contents(pem)?;
+            identity.resolve_certificate_from_contents(pem)?;
         }
 
-        Ok(cert)
+        Ok(identity)
     }
 
     // <config_path>/keys/<team_id>

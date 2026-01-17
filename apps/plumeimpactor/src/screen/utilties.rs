@@ -3,6 +3,37 @@ use iced::{Center, Color, Element, Task};
 
 use crate::appearance;
 use plume_utils::{Device, SignerAppReal};
+use std::collections::HashMap;
+
+#[derive(Debug, Clone)]
+struct StatusMessage {
+    text: String,
+    is_error: bool,
+}
+
+impl StatusMessage {
+    fn success(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            is_error: false,
+        }
+    }
+
+    fn error(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            is_error: true,
+        }
+    }
+
+    fn color(&self) -> Color {
+        if self.is_error {
+            Color::from_rgb(0.9, 0.2, 0.2)
+        } else {
+            Color::from_rgb(0.2, 0.8, 0.4)
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -11,14 +42,15 @@ pub enum Message {
     InstallPairingFile(SignerAppReal),
     Trust,
     PairResult(Result<(), String>),
-    InstallPairingResult(Result<(), String>),
+    InstallPairingResult(String, Result<(), String>),
 }
 
 #[derive(Debug, Clone)]
 pub struct UtilitiesScreen {
     device: Option<Device>,
     installed_apps: Vec<SignerAppReal>,
-    error_message: Option<String>,
+    status_message: Option<StatusMessage>,
+    app_statuses: HashMap<String, StatusMessage>,
     loading: bool,
     trust_loading: bool,
 }
@@ -28,13 +60,14 @@ impl UtilitiesScreen {
         let mut screen = Self {
             device,
             installed_apps: Vec::new(),
-            error_message: None,
+            status_message: None,
+            app_statuses: HashMap::new(),
             loading: false,
             trust_loading: false,
         };
 
         if screen.device.as_ref().map(|d| d.is_mac).unwrap_or(false) {
-            screen.error_message = Some("macOS devices are not supported".to_string());
+            screen.status_message = Some(StatusMessage::error("macOS devices are not supported"));
         }
 
         screen
@@ -44,7 +77,8 @@ impl UtilitiesScreen {
         match message {
             Message::RefreshApps => {
                 self.loading = true;
-                self.error_message = None;
+                self.status_message = None;
+                self.app_statuses.clear();
                 if let Some(device) = &self.device {
                     if device.is_mac {
                         return Task::none();
@@ -84,10 +118,10 @@ impl UtilitiesScreen {
                 match result {
                     Ok(apps) => {
                         self.installed_apps = apps;
-                        self.error_message = None;
+                        self.status_message = None;
                     }
                     Err(e) => {
-                        self.error_message = Some(e);
+                        self.status_message = Some(StatusMessage::error(e));
                         self.installed_apps.clear();
                     }
                 }
@@ -98,6 +132,7 @@ impl UtilitiesScreen {
                     let device = device.clone();
                     let bundle_id = app.bundle_id.clone().unwrap_or_default();
                     let pairing_path = app.app.pairing_file_path().unwrap_or_default();
+                    let app_key = Self::app_key(&app);
                     let (tx, rx) = std::sync::mpsc::sync_channel(1);
 
                     std::thread::spawn(move || {
@@ -120,7 +155,7 @@ impl UtilitiesScreen {
                             .join()
                             .unwrap()
                         },
-                        Message::InstallPairingResult,
+                        move |result| Message::InstallPairingResult(app_key, result),
                     )
                 } else {
                     Task::none()
@@ -128,7 +163,7 @@ impl UtilitiesScreen {
             }
             Message::Trust => {
                 self.trust_loading = true;
-                self.error_message = None;
+                self.status_message = None;
                 if let Some(device) = &self.device {
                     let device = device.clone();
                     let (tx, rx) = std::sync::mpsc::sync_channel(1);
@@ -163,24 +198,21 @@ impl UtilitiesScreen {
                 self.trust_loading = false;
                 match result {
                     Ok(_) => {
-                        self.error_message = Some("Device paired successfully!".to_string());
+                        self.status_message =
+                            Some(StatusMessage::success("Device paired successfully!"));
                     }
                     Err(e) => {
-                        self.error_message = Some(e);
+                        self.status_message = Some(StatusMessage::error(e));
                     }
                 }
                 Task::none()
             }
-            Message::InstallPairingResult(result) => {
-                match result {
-                    Ok(_) => {
-                        self.error_message =
-                            Some("Pairing file installed successfully!".to_string());
-                    }
-                    Err(e) => {
-                        self.error_message = Some(e);
-                    }
-                }
+            Message::InstallPairingResult(app_key, result) => {
+                let status = match result {
+                    Ok(_) => StatusMessage::success("Pairing file installed successfully!"),
+                    Err(e) => StatusMessage::error(e),
+                };
+                self.app_statuses.insert(app_key, status);
                 Task::none()
             }
         }
@@ -202,8 +234,8 @@ impl UtilitiesScreen {
                 content.push(text("No device connected").color(Color::from_rgb(0.7, 0.7, 0.7)));
         }
 
-        if let Some(ref error) = self.error_message {
-            content = content.push(text(error).size(14).color(Color::from_rgb(0.9, 0.2, 0.2)));
+        if let Some(ref status) = self.status_message {
+            content = content.push(text(&status.text).size(14).color(status.color()));
         }
 
         if self.device.is_some() && !self.device.as_ref().unwrap().is_mac {
@@ -249,7 +281,8 @@ impl UtilitiesScreen {
             let mut apps_list = column![].spacing(4);
 
             for app in &self.installed_apps {
-                apps_list = apps_list.push(
+                let app_key = Self::app_key(app);
+                let mut app_row = column![
                     row![
                         text(format!(
                             "{} ({})",
@@ -263,13 +296,26 @@ impl UtilitiesScreen {
                             .style(appearance::s_button)
                     ]
                     .spacing(appearance::THEME_PADDING)
-                    .align_y(Center),
-                );
+                    .align_y(Center)
+                ]
+                .spacing(4);
+
+                if let Some(status) = self.app_statuses.get(&app_key) {
+                    app_row = app_row.push(text(&status.text).size(13).color(status.color()));
+                }
+
+                apps_list = apps_list.push(app_row);
             }
 
             content = content.push(apps_list);
         }
 
         container(scrollable(content)).into()
+    }
+
+    fn app_key(app: &SignerAppReal) -> String {
+        app.bundle_id
+            .clone()
+            .unwrap_or_else(|| app.app.to_string())
     }
 }

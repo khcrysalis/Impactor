@@ -1,7 +1,7 @@
 use iced::widget::{
     button, checkbox, column, container, pick_list, row, scrollable, text, text_input,
 };
-use iced::{Alignment, Center, Element, Fill, Length, Task};
+use iced::{Alignment, Center, Element, Fill, Task};
 use plume_utils::{Package, PlistInfoTrait, SignerInstallMode, SignerMode, SignerOptions};
 
 use crate::appearance;
@@ -18,6 +18,8 @@ pub enum Message {
     ToggleProMotion(bool),
     ToggleSingleProfile(bool),
     ToggleLiquidGlass(bool),
+    ToggleRefresh(bool),
+    ToggleElleKit(bool),
     UpdateSignerMode(SignerMode),
     UpdateInstallMode(SignerInstallMode),
     AddTweak,
@@ -111,6 +113,14 @@ impl PackageScreen {
             }
             Message::ToggleLiquidGlass(value) => {
                 self.options.features.support_liquid_glass = value;
+                Task::none()
+            }
+            Message::ToggleRefresh(value) => {
+                self.options.refresh = value;
+                Task::none()
+            }
+            Message::ToggleElleKit(value) => {
+                self.options.features.support_ellekit = value;
                 Task::none()
             }
             Message::UpdateSignerMode(mode) => {
@@ -227,12 +237,12 @@ impl PackageScreen {
             text("Tweaks:").size(12),
             self.view_tweaks(),
             row![
-                button(text("Add Tweak").align_x(Center))
+                button(appearance::icon_text(appearance::PLUS, "Add Tweak", None))
                     .on_press(Message::AddTweak)
-                    .style(appearance::p_button),
-                button(text("Add Bundle").align_x(Center))
+                    .style(appearance::s_button),
+                button(appearance::icon_text(appearance::PLUS, "Add Bundle", None))
                     .on_press(Message::AddBundle)
-                    .style(appearance::p_button),
+                    .style(appearance::s_button),
             ]
             .spacing(8),
         ]
@@ -266,6 +276,12 @@ impl PackageScreen {
             checkbox(self.options.features.support_liquid_glass)
                 .label("Force Liquid Glass (26+)")
                 .on_toggle(Message::ToggleLiquidGlass),
+            checkbox(self.options.features.support_ellekit)
+                .label("Replace Substrate with ElleKit")
+                .on_toggle(Message::ToggleElleKit),
+            checkbox(self.options.refresh)
+                .label("Auto Refresh [BETA]")
+                .on_toggle(Message::ToggleRefresh),
             text("Mode:").size(12),
             pick_list(
                 &[SignerInstallMode::Install, SignerInstallMode::Export][..],
@@ -296,14 +312,22 @@ impl PackageScreen {
 
         container(
             row![
-                button(text("Back").align_x(Center))
-                    .on_press(Message::Back)
-                    .style(appearance::s_button)
-                    .width(Fill),
-                button(text(button_label).align_x(Center))
-                    .on_press_maybe(button_enabled.then_some(Message::RequestInstallation))
-                    .style(appearance::p_button)
-                    .width(Fill),
+                button(appearance::icon_text(
+                    appearance::CHEVRON_BACK,
+                    "Back",
+                    None
+                ))
+                .on_press(Message::Back)
+                .style(appearance::s_button)
+                .width(Fill),
+                button(appearance::icon_text(
+                    appearance::DOWNLOAD,
+                    button_label,
+                    None
+                ))
+                .on_press_maybe(button_enabled.then_some(Message::RequestInstallation))
+                .style(appearance::p_button)
+                .width(Fill),
             ]
             .spacing(appearance::THEME_PADDING),
         )
@@ -326,9 +350,9 @@ impl PackageScreen {
                     text(tweak.file_name().and_then(|n| n.to_str()).unwrap_or("???"))
                         .size(12)
                         .width(Fill),
-                    button(text("Remove").align_x(Center))
+                    button(appearance::icon(appearance::MINUS))
                         .on_press(Message::RemoveTweak(i))
-                        .style(appearance::p_button)
+                        .style(appearance::s_button)
                         .padding(6)
                 ]
                 .spacing(8)
@@ -337,7 +361,7 @@ impl PackageScreen {
                 tweak_list = tweak_list.push(tweak_row);
             }
 
-            scrollable(tweak_list).height(Length::Fixed(100.0)).into()
+            scrollable(tweak_list).into()
         } else {
             text("No tweaks added").size(12).into()
         }
