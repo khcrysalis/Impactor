@@ -19,6 +19,7 @@ pub enum Message {
     ToggleSingleProfile(bool),
     ToggleLiquidGlass(bool),
     ToggleRefresh(bool),
+    ToggleElleKit(bool),
     UpdateSignerMode(SignerMode),
     UpdateInstallMode(SignerInstallMode),
     AddTweak,
@@ -116,6 +117,10 @@ impl PackageScreen {
             }
             Message::ToggleRefresh(value) => {
                 self.options.refresh = value;
+                Task::none()
+            }
+            Message::ToggleElleKit(value) => {
+                self.options.features.support_ellekit = value;
                 Task::none()
             }
             Message::UpdateSignerMode(mode) => {
@@ -271,8 +276,11 @@ impl PackageScreen {
             checkbox(self.options.features.support_liquid_glass)
                 .label("Force Liquid Glass (26+)")
                 .on_toggle(Message::ToggleLiquidGlass),
+            checkbox(self.options.features.support_ellekit)
+                .label("Replace Substrate with ElleKit")
+                .on_toggle(Message::ToggleElleKit),
             checkbox(self.options.refresh)
-                .label("Auto Refresh")
+                .label("Auto Refresh [BETA]")
                 .on_toggle(Message::ToggleRefresh),
             text("Mode:").size(12),
             pick_list(
