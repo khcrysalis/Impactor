@@ -322,6 +322,74 @@ pub(crate) async fn run_installation(
         }
     }
 
+    match options.install_mode {
+        SignerInstallMode::Install => {
+            if let Some(dev) = &device {
+                if !dev.is_mac {
+                    send("Installing...".to_string(), 70);
+
+                    let tx_clone = tx.clone();
+                    dev.install_app(&package_file.bundle_dir(), move |progress: i32| {
+                        let tx = tx_clone.clone();
+                        // Some libraries expect this future to be processed.
+                        // We ensure it sends and resolves immediately.
+                        Box::pin(async move {
+                            let _ = tx.send(("Installing...".to_string(), 70 + (progress / 5)));
+                        })
+                    })
+                    .await
+                    .map_err(|e| format!("Install error: {}", e))?;
+
+                    if options.app.supports_pairing_file() {
+                        if let (Some(custom_identifier), Some(pairing_file_bundle_path)) = (
+                            options.custom_identifier.as_ref(),
+                            options.app.pairing_file_path(),
+                        ) {
+                            let _ = dev
+                                .install_pairing_record(
+                                    custom_identifier,
+                                    &pairing_file_bundle_path,
+                                )
+                                .await;
+                        }
+                    }
+                } else {
+                    send("Installing...".to_string(), 90);
+
+                    plume_utils::install_app_mac(&package_file.bundle_dir())
+                        .await
+                        .map_err(|e| e.to_string())?;
+                }
+            } else {
+                return Err("No device connected for installation".to_string());
+            }
+        }
+        SignerInstallMode::Export => {
+            send("Exporting...".to_string(), 90);
+
+            let archive_path = package
+                .get_archive_based_on_path(&package_file.bundle_dir())
+                .map_err(|e| e.to_string())?;
+
+            let file = rfd::AsyncFileDialog::new()
+                .set_title("Save Package As")
+                .set_file_name(
+                    archive_path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("package.ipa"),
+                )
+                .save_file()
+                .await;
+
+            if let Some(save_path) = file {
+                tokio::fs::copy(&archive_path, &save_path.path())
+                    .await
+                    .map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
     if options.refresh && options.mode == SignerMode::Pem {
         send("Saving for refresh...".to_string(), 75);
         let path = get_data_path().join("refresh_store");
@@ -399,72 +467,6 @@ pub(crate) async fn run_installation(
                         .add_or_update_refresh_device_sync(refresh_device)
                         .map_err(|e| e.to_string())?;
                 }
-            }
-        }
-    }
-
-    match options.install_mode {
-        SignerInstallMode::Install => {
-            if let Some(dev) = &device {
-                if !dev.is_mac {
-                    send("Installing...".to_string(), 80);
-
-                    let tx_clone = tx.clone();
-                    dev.install_app(&package_file.bundle_dir(), move |progress: i32| {
-                        let tx = tx_clone.clone();
-                        async move {
-                            let _ = tx.send(("Installing...".to_string(), 80 + (progress / 5)));
-                        }
-                    })
-                    .await
-                    .map_err(|e| e.to_string())?;
-
-                    if options.app.supports_pairing_file() {
-                        if let (Some(custom_identifier), Some(pairing_file_bundle_path)) = (
-                            options.custom_identifier.as_ref(),
-                            options.app.pairing_file_path(),
-                        ) {
-                            let _ = dev
-                                .install_pairing_record(
-                                    custom_identifier,
-                                    &pairing_file_bundle_path,
-                                )
-                                .await;
-                        }
-                    }
-                } else {
-                    send("Installing...".to_string(), 90);
-
-                    plume_utils::install_app_mac(&package_file.bundle_dir())
-                        .await
-                        .map_err(|e| e.to_string())?;
-                }
-            } else {
-                return Err("No device connected for installation".to_string());
-            }
-        }
-        SignerInstallMode::Export => {
-            send("Exporting...".to_string(), 90);
-
-            let archive_path = package
-                .get_archive_based_on_path(&package_file.bundle_dir())
-                .map_err(|e| e.to_string())?;
-
-            let file = rfd::AsyncFileDialog::new()
-                .set_title("Save Package As")
-                .set_file_name(
-                    archive_path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("package.ipa"),
-                )
-                .save_file()
-                .await;
-
-            if let Some(save_path) = file {
-                tokio::fs::copy(&archive_path, &save_path.path())
-                    .await
-                    .map_err(|e| e.to_string())?;
             }
         }
     }
