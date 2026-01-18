@@ -39,6 +39,12 @@ fn main() -> iced::Result {
         gtk::init().expect("GTK init failed");
     }
 
+    #[cfg(target_os = "macos")]
+    {
+        notify_rust::get_bundle_identifier_or_default("Impactor");
+        let _ = notify_rust::set_application("dev.khcrysalis.PlumeImpactor");
+    }
+
     let (_daemon_handle, connected_devices) = spawn_refresh_daemon();
     screen::set_refresh_daemon_devices(connected_devices);
 
