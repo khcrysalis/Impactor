@@ -111,6 +111,15 @@ impl RefreshDaemon {
     ) -> Result<(), String> {
         log::info!("Starting refresh for app at {:?}", app.path);
 
+        notify_rust::get_bundle_identifier_or_default("Impactor");
+        let _ = notify_rust::set_application("dev.khcrysalis.PlumeImpactor");
+
+        notify_rust::Notification::new()
+            .summary("Impactor")
+            .body(&format!("Started refreshing app at {:?}", app.path))
+            .show()
+            .ok();
+
         let account = store
             .get_account(&refresh_device.account)
             .ok_or_else(|| format!("Account {} not found", refresh_device.account))?;
@@ -172,6 +181,12 @@ impl RefreshDaemon {
             .await?;
 
         log::info!("Successfully refreshed app at {:?}", app.path);
+
+        notify_rust::Notification::new()
+            .summary("Impactor")
+            .body(&format!("Successfully refreshed app at {:?}", app.path))
+            .show()
+            .ok();
 
         Ok(())
     }
