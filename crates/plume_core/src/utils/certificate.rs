@@ -58,6 +58,7 @@ impl CertificateIdentity {
         config_path: PathBuf,
         machine_name: Option<String>,
         team_id: &String,
+        is_export: bool,
     ) -> Result<Self, Error> {
         let machine_name = machine_name.unwrap_or_else(|| MACHINE_NAME.to_string());
 
@@ -126,7 +127,7 @@ impl CertificateIdentity {
         };
 
         // TODO: this may be horrendious
-        if let Some(p12_data) = identity.create_pkcs12(&key_pair) {
+        if let Some(p12_data) = identity.create_pkcs12(&key_pair, is_export) {
             identity.p12_data = Some(p12_data);
         }
 
@@ -159,7 +160,7 @@ impl CertificateIdentity {
     // just another unnecessary dependency, but the p12 crate that applecodesign-rs
     // uses has no support for modern encryption, hopefully this doesn't add that
     // much more bloat
-    pub fn create_pkcs12(&self, data: &[Vec<u8>; 2]) -> Option<Vec<u8>> {
+    pub fn create_pkcs12(&self, data: &[Vec<u8>; 2], is_export: bool) -> Option<Vec<u8>> {
         let cert_der = pem::parse(&data[0]).ok()?.contents().to_vec();
         let key_der = pem::parse(&data[1]).ok()?.contents().to_vec();
 
@@ -181,7 +182,16 @@ impl CertificateIdentity {
             p12_keystore::KeyStoreEntry::PrivateKeyChain(key_chain),
         );
 
-        let writer = keystore.writer(self.machine_id.as_deref().unwrap_or(""));
+        // when exporting the user has no idea what the password is, just dont set one
+        // otherwise, when not exporting (used for SideStore/AltStore) we use the
+        // machine_id since it needs it to locate a matching certificate
+        let password = if is_export {
+            "".to_string()
+        } else {
+            self.machine_id.as_deref().unwrap_or("").to_string()
+        };
+
+        let writer = keystore.writer(&password);
         writer.write().ok()
     }
 

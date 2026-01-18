@@ -94,7 +94,7 @@ pub async fn execute(args: SignArgs) -> Result<()> {
         let session = get_authenticated_account().await?;
         let team_id = teams(&session).await?;
         let cert_identity =
-            CertificateIdentity::new_with_session(&session, get_data_path(), None, &team_id)
+            CertificateIdentity::new_with_session(&session, get_data_path(), None, &team_id, false)
                 .await?;
 
         options.mode = SignerMode::Pem;

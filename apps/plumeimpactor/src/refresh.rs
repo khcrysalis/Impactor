@@ -154,10 +154,15 @@ impl RefreshDaemon {
         };
 
         let identity_is_new = {
-            let identity =
-                CertificateIdentity::new_with_session(&session, get_data_path(), None, team_id)
-                    .await
-                    .map_err(|e| format!("Failed to create identity: {}", e))?;
+            let identity = CertificateIdentity::new_with_session(
+                &session,
+                get_data_path(),
+                None,
+                team_id,
+                false,
+            )
+            .await
+            .map_err(|e| format!("Failed to create identity: {}", e))?;
             identity.new
         };
 
@@ -223,10 +228,15 @@ impl RefreshDaemon {
         };
 
         let team_id_string = team_id.to_string();
-        let signing_identity =
-            CertificateIdentity::new_with_session(session, get_data_path(), None, &team_id_string)
-                .await
-                .map_err(|e| format!("Failed to create signing identity: {}", e))?;
+        let signing_identity = CertificateIdentity::new_with_session(
+            session,
+            get_data_path(),
+            None,
+            &team_id_string,
+            false,
+        )
+        .await
+        .map_err(|e| format!("Failed to create signing identity: {}", e))?;
 
         let mut signer = Signer::new(Some(signing_identity), options);
 

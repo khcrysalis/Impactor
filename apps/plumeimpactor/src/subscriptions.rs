@@ -255,6 +255,7 @@ pub(crate) async fn run_installation(
                 crate::defaults::get_data_path(),
                 None,
                 team_id,
+                false,
             )
             .await
             .map_err(|e| e.to_string())?;
@@ -514,6 +515,7 @@ pub(crate) async fn export_certificate(account: plume_store::GsaAccount) -> Resu
         crate::defaults::get_data_path(),
         None,
         team_id,
+        true,
     )
     .await
     .map_err(|e| e.to_string())?;
