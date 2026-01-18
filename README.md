@@ -1,5 +1,4 @@
-# <img src="https://github.com/user-attachments/assets/18f2eff4-546f-4365-98eb-afb19b13dc13" width="25" height="25" /> PlumeImpactor
-
+# <img src="https://github.com/user-attachments/assets/18f2eff4-546f-4365-98eb-afb19b13dc13" width="25" height="25" /> Impactor
 
 [![GitHub Release](https://img.shields.io/github/v/release/khcrysalis/PlumeImpactor?include_prereleases)](https://github.com/khcrysalis/PlumeImpactor/releases)
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/khcrysalis/PlumeImpactor/total)](https://github.com/khcrysalis/PlumeImpactor/releases)
@@ -52,6 +51,21 @@ Lastly, we do all of the necessary modifications we need to the app you're tryin
 
 That's the entire gist of how this works! Of course its very short and brief, however feel free to look how it works since its open source :D
 
+### Pairing File
+
+Impactor also allows the user to generate a pairing file for applications to talk directly to the device remotely. This pairing file is device specific and will become invalid if you ever re-trust/update/reset.
+
+Supported apps:
+- `SideStore`
+- `Feather`
+- `SparseBox`
+- `LiveContainer + SideStore`
+- `Antrag`
+- `Protokolle`
+- `StikDebug`
+
+You can retrieve this file by either sideloading the supported app of your choice, or going to the `Utilities` page when a device is connected and press install for the supported app.
+
 ## Structure
 
 The project is seperated in multiple modules, all serve single or multiple uses depending on their importance.
@@ -68,7 +82,6 @@ The project is seperated in multiple modules, all serve single or multiple uses 
 ## Building
 
 Building is going to be a bit convoluted for each platform, each having their own unique specifications, but the best reference for building should be looking at how [GitHub actions](./.github/workflows/build.yml) does it.
-
 
 You need:
 - [Rust](https://rustup.rs/).
@@ -119,10 +132,10 @@ sudo dnf install clang-devel pkg-config gtk3-devel libpng-devel libjpeg-devel me
 - [idevice](https://github.com/jkcoxson/idevice) – Used for communication with `installd`, specifically for sideloading the apps to your devices.
 - [apple-codesign-rs](https://github.com/indygreg/apple-platform-rs) – Codesign alternative, modified and extended upon to work for Impactor.
 
-## License
-
-Project is licensed under the MIT license. You can see the full details of the license [here](https://github.com/khcrysalis/PlumeImpactor/blob/main/LICENSE). Some components may be licensed under different licenses, see their respective directories for details.
-
 <a href="https://github.com/iced-rs/iced">
   <img src="https://gist.githubusercontent.com/hecrj/ad7ecd38f6e47ff3688a38c79fd108f0/raw/74384875ecbad02ae2a926425e9bcafd0695bade/color.svg" width="130px">
 </a>
+
+## License
+
+Project is licensed under the MIT license. You can see the full details of the license [here](https://github.com/khcrysalis/PlumeImpactor/blob/main/LICENSE). Some components may be licensed under different licenses, see their respective directories for details.
