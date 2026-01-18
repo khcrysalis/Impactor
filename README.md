@@ -1,4 +1,5 @@
-# PlumeImpactor
+# <img src="https://github.com/user-attachments/assets/18f2eff4-546f-4365-98eb-afb19b13dc13" width="25" height="25" /> PlumeImpactor
+
 
 [![GitHub Release](https://img.shields.io/github/v/release/khcrysalis/PlumeImpactor?include_prereleases)](https://github.com/khcrysalis/PlumeImpactor/releases)
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/khcrysalis/PlumeImpactor/total)](https://github.com/khcrysalis/PlumeImpactor/releases)
@@ -11,24 +12,25 @@ Open-source, cross-platform, and feature rich iOS sideloading application. Suppo
 
 [^2]: On Windows, [iTunes](https://support.apple.com/en-us/106372) must be downloaded so Impactor is able to use the drivers for interacting with Apple devices.
 
-| ![Demo of app](demo.png)                                                                            |
-| :--------------------------------------------------------------------------------------------------: |
-| Screenshot of Impactor after importing [Feather](https://github.com/khcrysalis/Feather). |
+![Demo of app](demo.png)
 
 ### Features
 
 - User friendly and clean UI.
 - Supports Linux.
 - Sign and sideload applications on iOS 9.0+ & Mac with your Apple ID.
-  - Installing with AppSync is supported.
+  - Installing with [AppSync](https://github.com/akemin-dayo/AppSync) is supported.
   - Installing with ipatool gotten ipa's is supported.
     - Automatically disables updates from the App Store.
 - Simple customization options for the app.
 - Tweak support for advanced users, using [ElleKit](https://github.com/tealbathingsuit/ellekit) for injection.
   - Supports injecting `.deb` and `.dylib` files.
   - Supports adding `.framework`, `.bundle`, and `.appex` directories.
-- Generates P12 for SideStore/AltStore to use, similar to how Altserver works.
+  - Supports replacing Cydia Substrate with ElleKit for 26.0 compatibility.
+- Generates P12 for SideStore/AltStore to use, similar to Altserver.
 - Automatically populate pairing files for apps like SideStore, Antrag, and Protokolle.
+- Comes with simple device utilities for retrusting/placing pairing file.
+- Export P12 for use with LiveContainer.
 - Almost *proper* entitlement handling and can register app plugins.
   - Able to request entitlements like `increased-memory-limit`, for emulators like MelonX or UTM.
 
@@ -120,3 +122,7 @@ sudo dnf install clang-devel pkg-config gtk3-devel libpng-devel libjpeg-devel me
 ## License
 
 Project is licensed under the MIT license. You can see the full details of the license [here](https://github.com/khcrysalis/PlumeImpactor/blob/main/LICENSE). Some components may be licensed under different licenses, see their respective directories for details.
+
+<a href="https://github.com/iced-rs/iced">
+  <img src="https://gist.githubusercontent.com/hecrj/ad7ecd38f6e47ff3688a38c79fd108f0/raw/74384875ecbad02ae2a926425e9bcafd0695bade/color.svg" width="130px">
+</a>
