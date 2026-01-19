@@ -37,7 +37,7 @@ auto-launcher = "0.6.1"
 plume_gestalt = { path = "../../crates/plume_gestalt" }
 
 [build-dependencies]
-winres = "0.1"
+winres = { git = "https://github.com/Nilstrieb/winres", branch = "linking-flags" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
