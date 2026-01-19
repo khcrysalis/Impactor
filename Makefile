@@ -28,6 +28,8 @@ NSIS ?= 0
 FLATPAK ?= 0
 FLATPAK_BUILDER_TOOLS ?= /tmp/flatpak-builder-tools/
 FLATPAK_BUILDER_TOOLS_COMMIT ?= 3fc0620788a1dda1a3a539b8f972edadce8260ab
+FLATPAK_SHARED_MODULES ?= ./shared-modules/
+FLATPAK_SHARED_MODULES_COMMIT ?= d1a2cf59d137b47abc07297ecd35a5af9b5e16f4
 FLATPAK_BUILDER_DIR ?= ./.flatpak-out/
 FLATPAK_BUILDER_MANIFEST ?= $(ID).json
 FLATPAK_BUNDLE_REPO ?= ~/.local/share/flatpak/repo
@@ -68,6 +70,11 @@ ifeq ($(wildcard $(FLATPAK_BUILDER_TOOLS)),)
 	@git clone https://github.com/flatpak/flatpak-builder-tools.git "$(FLATPAK_BUILDER_TOOLS)"
 	@cd $(FLATPAK_BUILDER_TOOLS); \
 		git checkout $(FLATPAK_BUILDER_TOOLS_COMMIT)
+endif
+ifeq ($(wildcard $(FLATPAK_SHARED_MODULES)),)
+	@git clone https://github.com/flathub/shared-modules.git "$(FLATPAK_SHARED_MODULES)"
+	@cd $(FLATPAK_SHARED_MODULES); \
+		git checkout $(FLATPAK_SHARED_MODULES_COMMIT)
 endif
 	@poetry --project "$(FLATPAK_BUILDER_TOOLS)/cargo" install
 	@poetry --project "$(FLATPAK_BUILDER_TOOLS)/cargo" run \

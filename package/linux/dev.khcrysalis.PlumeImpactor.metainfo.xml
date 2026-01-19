@@ -50,6 +50,19 @@
   </branding>
   
   <releases>
+    <release version="1.4.1" date="2026-1-10">
+      <url type="details">https://github.com/khcrysalis/PlumeImpactor/releases/tag/v1.4.1</url>
+      <description>
+        <p>New application icon, multiple bug fixes</p>
+        <ul>
+          <li>Introduces new icon made by @paigely! Thank you o(〃＾▽＾〃)o</li>
+          <li>Fixes issues involving the signer not signing .dylib files, by properly handling header magic.</li>
+          <li>Fixes ALTCertificate.p12 placement for LiveContainer+SideStore.</li>
+          <li>Fixes pairing file not being placed properly in applications.</li>
+        </ul>
+      </description>
+    </release>
+    
     <release version="1.4.0" date="2025-12-29">
       <url type="details">https://github.com/khcrysalis/PlumeImpactor/releases/tag/v1.4.0</url>
       <description>

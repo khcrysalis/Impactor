@@ -4,7 +4,7 @@ Type=Application
 
 Name=Plume Impactor
 Comment=Feature rich iOS sideloading application
-Categories=Utility;GTK;
+Categories=Utility;
 
 Icon=dev.khcrysalis.PlumeImpactor
 Exec=plumeimpactor
