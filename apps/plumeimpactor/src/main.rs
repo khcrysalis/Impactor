@@ -10,6 +10,7 @@ mod defaults;
 mod refresh;
 mod screen;
 mod subscriptions;
+mod startup;
 mod tray;
 
 pub const APP_NAME: &str = "Impactor";

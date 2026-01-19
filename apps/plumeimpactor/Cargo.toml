@@ -31,6 +31,7 @@ rfd = "0.16.0"
 open = "5.3.3"
 notify-rust = "4.11.7"
 single-instance = "0.3.3"
+auto-launcher = "0.6.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 plume_gestalt = { path = "../../crates/plume_gestalt" }

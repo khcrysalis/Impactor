@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use iced::widget::{button, column, container, pick_list, row, scrollable, text};
+use iced::widget::{button, checkbox, column, container, pick_list, row, scrollable, text};
 use iced::{Alignment, Element, Fill, Task};
 use plume_store::AccountStore;
 
@@ -27,6 +27,7 @@ pub enum Message {
     SelectTeam(String, String),
     FetchTeams(String),
     TeamsLoaded(String, Vec<Team>),
+    ToggleAutoStart(bool),
 }
 
 #[derive(Debug)]
@@ -54,6 +55,7 @@ impl SettingsScreen {
                 self.loading_teams = None;
                 Task::none()
             }
+            Message::ToggleAutoStart(_) => Task::none(),
             Message::SelectTeam(_, _) => Task::none(),
             _ => Task::none(),
         }
@@ -151,9 +153,18 @@ impl SettingsScreen {
             content = content.push(text("No accounts added yet"));
         }
 
+        let auto_start_enabled = crate::startup::auto_start_enabled();
+        content = content.push(self.view_auto_start_toggle(auto_start_enabled));
         content = content.push(self.view_account_buttons(selected_index));
 
         content.into()
+    }
+
+    fn view_auto_start_toggle(&self, auto_start_enabled: bool) -> Element<'_, Message> {
+        checkbox(auto_start_enabled)
+            .label("Launch on Startup")
+            .on_toggle(Message::ToggleAutoStart)
+            .into()
     }
 
     fn view_account_buttons(&self, selected_index: Option<usize>) -> Element<'_, Message> {

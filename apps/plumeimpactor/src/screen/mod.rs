@@ -108,7 +108,13 @@ impl Impactor {
         let mut tray = ImpactorTray::new();
         let store = Self::init_account_store_sync();
         tray.update_refresh_apps(&store);
-        let (id, open_task) = window::open(defaults::default_window_settings());
+        let start_in_tray = crate::startup::start_in_tray_from_args();
+        let (main_window, open_task) = if start_in_tray {
+            (None, Task::none())
+        } else {
+            let (id, open_task) = window::open(defaults::default_window_settings());
+            (Some(id), open_task.discard())
+        };
 
         (
             Self {
@@ -117,12 +123,12 @@ impl Impactor {
                 devices: Vec::new(),
                 selected_device: None,
                 tray: Some(tray),
-                main_window: Some(id),
+                main_window,
                 account_store: Some(store),
                 login_windows: std::collections::HashMap::new(),
                 pending_installation: false,
             },
-            open_task.discard(),
+            open_task,
         )
     }
 
@@ -421,6 +427,12 @@ impl Impactor {
                                         crate::subscriptions::export_certificate(account).await
                                     });
                                 });
+                            }
+                            Task::none()
+                        }
+                        settings::Message::ToggleAutoStart(enabled) => {
+                            if let Err(err) = crate::startup::set_auto_start_enabled(enabled) {
+                                log::error!("Failed to update auto-start: {err}");
                             }
                             Task::none()
                         }
