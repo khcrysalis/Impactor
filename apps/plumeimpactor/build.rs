@@ -12,7 +12,7 @@ fn main() -> io::Result<()> {
             "msvc" => {}
             _ => panic!("unsupported env"),
         };
-        res.set_icon("assets/icon.ico");
+        res.set_icon("../../package/windows/icon.ico");
         res.compile()?;
     }
     Ok(())
