@@ -3,6 +3,7 @@
 /target
 /.flatpak-builder
 /.flatpak-out
+/shared-modules
 
 *.DS_Store
 state.plist

@@ -3,10 +3,7 @@
     "runtime": "org.freedesktop.Platform",
     "runtime-version": "25.08",
     "sdk": "org.freedesktop.Sdk",
-    "sdk-extensions": [
-        "org.freedesktop.Sdk.Extension.rust-stable",
-        "org.freedesktop.Sdk.Extension.llvm21"
-    ],
+    "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
     "command": "plumeimpactor",
     "finish-args": [
         "--share=network",
@@ -14,81 +11,39 @@
         "--socket=wayland",
         "--share=ipc",
         "--device=all",
-        "--talk-name=org.freedesktop.Notifications",
-        "--filesystem=/run/usbmuxd"
+        "--filesystem=/run/usbmuxd",
+        "--talk-name=org.kde.StatusNotifierWatcher"
     ],
-    "build-options": {
-        "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm21/bin",
-        "env": {
-            "CARGO_HOME": "/run/build/plumeimpactor/cargo",
-            "CARGO_NET_OFFLINE": "true",
-            "BINDGEN_EXTRA_CLANG_ARGS": "--sysroot=/usr -isystem /usr/include -isystem /usr/include/x86_64-linux-gnu -isystem /usr/lib/sdk/llvm21/lib/clang/21/include",
-            "BINDGEN_EXTRA_CLANG_ARGS_x86_64-unknown-linux-gnu": "--sysroot=/usr -isystem /usr/include -isystem /usr/include/x86_64-linux-gnu -isystem /usr/lib/sdk/llvm21/lib/clang/21/include",
-            "BINDGEN_EXTRA_CLANG_ARGS_x86_64_unknown_linux_gnu": "--sysroot=/usr -isystem /usr/include -isystem /usr/include/x86_64-linux-gnu -isystem /usr/lib/sdk/llvm21/lib/clang/21/include"
-        }
-    },
     "cleanup": [
         "/include",
         "/lib/pkgconfig",
         "/share/pkgconfig",
         "/share/aclocal",
-        "/share/man"
+        "/share/doc",
+        "/share/man",
+        "/share/vala",
+        "/share/gtk-doc",
+        "/share/libayatana-indicator",
+        "/share/libdbusmenu"
     ],
     "modules": [
-        {
-            "name": "libnotify",
-            "buildsystem": "meson",
-            "config-opts": [
-                "-Dtests=false",
-                "-Dintrospection=disabled",
-                "-Dman=false",
-                "-Dgtk_doc=false"
-            ],
-            "sources": [
-                {
-                    "type": "archive",
-                    "url": "https://download.gnome.org/sources/libnotify/0.8/libnotify-0.8.7.tar.xz",
-                    "sha256": "4be15202ec4184fce1ac15997ece5530d2be32fe9573875aeb10e3b573858748"
-                }
-            ]
-        },
-        {
-            "name": "libzip",
-            "buildsystem": "cmake-ninja",
-            "config-opts": [
-                "-DBUILD_SHARED_LIBS=ON",
-                "-DBUILD_TOOLS=OFF",
-                "-DBUILD_REGRESS=OFF",
-                "-DBUILD_EXAMPLES=OFF",
-                "-DENABLE_BZIP2=ON",
-                "-DENABLE_LZMA=ON",
-                "-DENABLE_ZSTD=ON"
-            ],
-            "sources": [
-                {
-                    "type": "archive",
-                    "url": "https://libzip.org/download/libzip-1.11.4.tar.xz",
-                    "sha256": "8a247f57d1e3e6f6d11413b12a6f28a9d388de110adc0ec608d893180ed7097b"
-                }
-            ]
-        },
+        "../../shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json",
         {
             "name": "plumeimpactor",
             "buildsystem": "simple",
             "build-commands": [
-                "mkdir -p target/release/wxWidgets",
-                "unzip -oqq wxWidgets.zip -d target/release/wxWidgets",
                 "cargo --offline fetch --manifest-path Cargo.toml",
-                "bash -c 'export RUSTFLAGS=\"-C link-arg=-L/app/lib -C link-arg=-lnotify\"; cargo --offline build --release -p plumeimpactor'",
+                "cargo --offline build --release --bins --workspace",
                 "make install PREFIX=/app PROFILE=release"
             ],
+            "build-options": {
+                "append-path": "/usr/lib/sdk/rust-stable/bin",
+                "env": {
+                    "CARGO_HOME": "/run/build/plumeimpactor/cargo",
+                    "CARGO_NET_OFFLINE": "true"
+                }
+            },
             "sources": [
-                {
-                    "type": "file",
-                    "url": "https://github.com/wxWidgets/wxWidgets/releases/download/v3.3.1/wxWidgets-3.3.1.zip",
-                    "sha256": "c25311fecbc4b508577bdee4e90660da8d0d79f4099bc40e9cac8338879f9334",
-                    "dest-filename": "wxWidgets.zip"
-                },
                 {
                     "type": "dir",
                     "path": "../../"
