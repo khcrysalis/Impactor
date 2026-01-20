@@ -9,8 +9,8 @@ mod appearance;
 mod defaults;
 mod refresh;
 mod screen;
-mod startup;
 mod subscriptions;
+mod startup;
 mod tray;
 
 pub const APP_NAME: &str = "Impactor";
@@ -34,9 +34,6 @@ fn main() -> iced::Result {
             None
         }
     };
-    // set this to low so it tries to use the iGPU instead
-    // https://github.com/iced-rs/iced/issues/3143
-    unsafe { std::env::set_var("WGPU_POWER_PREF", "low") };
 
     #[cfg(target_os = "linux")]
     {
