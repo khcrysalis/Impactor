@@ -433,8 +433,8 @@ pub(crate) async fn run_installation(
                     let scheduled_refresh = expiration_date
                         .to_xml_format()
                         .parse::<chrono::DateTime<chrono::Utc>>()
-                        .unwrap_or_else(|_| chrono::Utc::now() + chrono::Duration::days(6));
-                    let scheduled_refresh = scheduled_refresh - chrono::Duration::days(1);
+                        .unwrap_or_else(|_| chrono::Utc::now() + chrono::Duration::days(4));
+                    let scheduled_refresh = scheduled_refresh - chrono::Duration::days(3);
 
                     let refresh_app = plume_store::RefreshApp {
                         name: package_file.get_name(),

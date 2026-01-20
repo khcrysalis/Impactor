@@ -370,8 +370,8 @@ impl RefreshDaemon {
         let scheduled_refresh = expiration_date
             .to_xml_format()
             .parse::<chrono::DateTime<chrono::Utc>>()
-            .unwrap_or_else(|_| Utc::now() + chrono::Duration::days(6));
-        let scheduled_refresh = scheduled_refresh - chrono::Duration::days(1);
+            .unwrap_or_else(|_| Utc::now() + chrono::Duration::days(4));
+        let scheduled_refresh = scheduled_refresh - chrono::Duration::days(3);
 
         let mut store = store.clone();
         let mut updated_device = refresh_device.clone();
