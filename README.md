@@ -40,7 +40,7 @@ Auto-refresh will not work the same as it would on other platforms like macOS/Wi
 
 Visit [releases](https://github.com/khcrysalis/PlumeImpactor/releases) and get the latest version for your computer.
 
-Impactor is also available on flatpak & homebrew.
+###### *This is also available on flatpak & homebrew.*
 
 **Linux:**
 

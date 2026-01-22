@@ -1,17 +1,10 @@
-name: "Build & Bundle"
+name: Release
+
 on:
   push:
-    branches:
-      - main
-    paths:
-      - "crates/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "apps/**"
-      - "package/**"
-      - ".github/workflows/build.yml"
+    tags:
+      - v*
   workflow_dispatch:
-
 env:
   BINARY_NAME: plumeimpactor
   BINARY_NAME_CLI: plumesign
@@ -242,3 +235,64 @@ jobs:
           path: |
             dist/${{ env.BUNDLE_NAME }}-macos-universal.dmg
             dist/${{ env.BINARY_NAME_CLI }}-macos-universal
+  release:
+    runs-on: ubuntu-22.04
+    needs: [build-linux, build-windows-installer, build-macos-universal]
+    steps:
+      - name: Download Linux x86_64 Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}-linux-x86_64
+          path: prepare/
+
+      - name: Download Linux aarch64 Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}-linux-aarch64
+          path: prepare/
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}-windows
+          path: prepare/
+
+      - name: Download Windows Installer Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}-windows-installer
+          path: prepare/
+
+      - name: Download MacOS Universal Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}-macos-universal
+          path: prepare/
+
+      - name: Prepare Uploads
+        run: |
+          mkdir -p upload
+          shopt -s globstar
+          mv prepare/**/*.dmg upload/
+          mv prepare/**/*.appimage upload/
+          mv prepare/**/*.exe upload/
+          mv prepare/**/plumesign* upload/
+
+      - name: Extract Version
+        id: get_version
+        run: |
+          VERSION=$(awk '/\[workspace.package\]/,/^$/' Cargo.toml | sed -nE 's/version *= *"([^"]*)".*/\1/p')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.get_version.outputs.version }}
+          tag_name: v${{ steps.get_version.outputs.version }}
+          files: |
+            upload/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}

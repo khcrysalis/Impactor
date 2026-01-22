@@ -1,6 +1,7 @@
 /dist
 /tests
 /target
+/upload
 /.flatpak-builder
 /.flatpak-out
 /shared-modules
