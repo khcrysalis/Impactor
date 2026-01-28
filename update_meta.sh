@@ -98,8 +98,8 @@ done <<< "$BODY"
 # ------------------------------------------------------------
 RELEASE_TMP="$(mktemp)"
 cat > "$RELEASE_TMP" <<EOF
-<release version="$VERSION" date="$DATE" type="stable">
-  <url>$RELEASE_URL</url>
+<release version="$VERSION" date="$DATE">
+  <url type="details">$RELEASE_URL</url>
   <description>
 $(sed 's/^/    /' "$DESCRIPTION_TMP")
   </description>

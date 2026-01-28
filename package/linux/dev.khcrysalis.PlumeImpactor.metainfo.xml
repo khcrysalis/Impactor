@@ -44,6 +44,16 @@
     <color type="primary" scheme_preference="dark">#a6415b</color>
   </branding>
   <releases>
+    <release version="v2.0.3" date="2026-01-28">
+      <url type="details">https://github.com/khcrysalis/Impactor/releases/tag/v2.0.3</url>
+      <description>
+        <p>What's Changed</p>
+        <ul>
+          <li>Added support for [EnsWilde](https://github.com/YangJiiii/EnsWilde) for pairing file placement.</li>
+          <li>Added support for [ByeTunes](https://github.com/EduAlexxis/ByeTunes) for pairing file placement.</li>
+        </ul>
+      </description>
+    </release>
     <release version="v2.0.2" date="2026-01-22">
       <url type="details">https://github.com/khcrysalis/Impactor/releases/tag/v2.0.2</url>
       <description>
