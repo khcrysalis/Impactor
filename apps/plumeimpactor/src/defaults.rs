@@ -26,7 +26,10 @@ pub(crate) fn default_window_settings() -> window::Settings {
     };
 
     #[cfg(not(target_os = "macos"))]
-    let platform_specific = window::settings::PlatformSpecific::default();
+    let platform_specific = window::settings::PlatformSpecific {
+        application_id: String::from("dev.khcrysalis.PlumeImpactor"),
+        ..Default::default()
+    };
 
     window::Settings {
         size: iced::Size::new(575.0, 410.0),
