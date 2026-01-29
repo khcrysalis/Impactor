@@ -31,8 +31,9 @@ incremental = true          # Improves re-compile times
 [workspace.dependencies]
 tokio = { version = "1.43", features = ["full"] }
 # Application
-idevice = { git = "https://github.com/PlumeImpactor/plume-idevice", rev = "5e350a", features = [
-    "full"
+idevice = { git = "https://github.com/PlumeImpactor/plume-idevice", rev = "5e350a", default-features = false, features = [
+    "full",
+    "ring",
 ] }
 plist = "1.8.0"
 

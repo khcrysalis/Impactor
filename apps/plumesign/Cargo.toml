@@ -17,7 +17,7 @@ plume_core = { path = "../../crates/plume_core", features = ["tweaks"] }
 plume_utils = { path = "../../crates/plume_types" }
 plume_store = { path = "../../crates/plume_store" }
 
-rustls = { version = "0.23.32", features = ["ring"] }
+rustls = { version = "0.23.32", default-features = false, features = ["std", "tls12", "ring"] }
 
 clap = { version = "4.5", features = ["derive"] }
 dialoguer = "0.12.0"

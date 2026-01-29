@@ -22,7 +22,7 @@ plume_store = { path = "../../crates/plume_store" }
 # TODO: move to workspace
 chrono = { version = "0.4.42", features = ["serde"] }
 
-rustls = { version = "0.23.32", features = ["ring"] }
+rustls = { version = "0.23.32", default-features = false, features = ["std", "tls12", "ring"] }
 
 iced = { version = "0.14.0", features = ["image", "advanced"] }
 tray-icon = { version = "0.21.2", default-features = false }

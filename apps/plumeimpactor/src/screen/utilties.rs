@@ -314,8 +314,6 @@ impl UtilitiesScreen {
     }
 
     fn app_key(app: &SignerAppReal) -> String {
-        app.bundle_id
-            .clone()
-            .unwrap_or_else(|| app.app.to_string())
+        app.bundle_id.clone().unwrap_or_else(|| app.app.to_string())
     }
 }
