@@ -75,6 +75,76 @@ pub(crate) fn device_listener() -> Subscription<Message> {
     })
 }
 
+// - browse mdns devices
+// - look up the pairing file by its MAC address
+// - create a tcpprovider (idevice crate)
+// - then we can see the exact same device that was connected to usbmuxd
+pub(crate) fn device_listener_tcp() -> Subscription<Message> {
+    Subscription::run(|| {
+        iced::stream::channel(
+            100,
+            |mut output: iced::futures::channel::mpsc::Sender<Message>| async move {
+                use iced::futures::{SinkExt, StreamExt};
+                let (_, mut rx) = iced::futures::channel::mpsc::unbounded::<Message>();
+
+                std::thread::spawn(move || {
+                    let rt = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .unwrap();
+
+                    rt.block_on(async move {
+                        const SERVICE_NAME: &str = "apple-mobdev2";
+                        const SERVICE_PROTOCOL: &str = "tcp";
+                        let service_name = format!("_{}._{}.local", SERVICE_NAME, SERVICE_PROTOCOL);
+
+                        let stream =
+                            mdns::discover::all(&service_name, tokio::time::Duration::from_secs(1))
+                                .expect("Unable to start mDNS discover stream")
+                                .listen();
+                        futures_util::pin_mut!(stream);
+
+                        while let Some(Ok(response)) = stream.next().await {
+                            let mut addr = response.records().filter_map(|r| to_ip_addr(r)).next();
+                            let mut mac_addr = None;
+                            for i in response.records() {
+                                if let mdns::RecordKind::A(addr4) = i.kind {
+                                    addr = Some(std::net::IpAddr::V4(addr4));
+                                }
+                                if i.name.contains(&service_name) && i.name.contains('@') {
+                                    mac_addr = i.name.split('@').next();
+                                }
+                                println!("Record: {:?}", i);
+                            }
+
+                            let mac_addr = match mac_addr {
+                                Some(m) => m,
+                                None => {
+                                    continue;
+                                }
+                            };
+
+                            //
+                        }
+                    });
+                });
+
+                while let Some(message) = rx.next().await {
+                    let _ = output.send(message).await;
+                }
+            },
+        )
+    })
+}
+
+fn to_ip_addr(record: &mdns::Record) -> Option<std::net::IpAddr> {
+    match record.kind {
+        mdns::RecordKind::A(addr) => Some(addr.into()),
+        mdns::RecordKind::AAAA(addr) => Some(addr.into()),
+        _ => None,
+    }
+}
+
 pub(crate) fn tray_subscription() -> Subscription<Message> {
     Subscription::run(|| {
         iced::stream::channel(

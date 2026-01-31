@@ -675,7 +675,7 @@ impl Impactor {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        let device_subscription = subscriptions::device_listener();
+        let device_subscription = subscriptions::device_listener_tcp();
 
         let tray_subscription = subscriptions::tray_subscription();
 
