@@ -24,9 +24,9 @@ chrono = { version = "0.4.42", features = ["serde"] }
 
 rustls = { version = "0.23.32", default-features = false, features = ["std", "tls12", "ring"] }
 
-iced = { version = "0.14.0", features = ["image", "advanced"] }
+iced = { version = "0.14.0", features = ["image-without-codecs", "advanced"] }
 tray-icon = { version = "0.21.2", default-features = false }
-image = "0.25"
+image = { version = "0.25", default-features = false, features = ["png"] }
 rfd = "0.16.0"
 open = "5.3.3"
 notify-rust = "4.11.7"
