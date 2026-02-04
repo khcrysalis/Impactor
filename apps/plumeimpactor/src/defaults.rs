@@ -49,7 +49,7 @@ fn load_window_icon() -> window::Icon {
     let bytes = include_bytes!(
         "../../../package/linux/icons/hicolor/64x64/apps/dev.khcrysalis.PlumeImpactor.png"
     );
-    let image = image::load_from_memory(bytes)
+    let image = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)
         .expect("Failed to load icon bytes")
         .to_rgba8();
     let (width, height) = image.dimensions();

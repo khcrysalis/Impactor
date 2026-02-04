@@ -20,7 +20,7 @@ fn load_icon() -> Icon {
     let bytes = include_bytes!("./tray_colored.png");
     #[cfg(all(not(target_os = "windows")))]
     let bytes = include_bytes!("./tray.png");
-    let image = image::load_from_memory(bytes)
+    let image = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)
         .expect("Failed to load icon bytes")
         .to_rgba8();
     let (width, height) = image.dimensions();
