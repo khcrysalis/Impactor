@@ -1,5 +1,5 @@
 use std::io;
-use winres::WindowsResource;
+use winresource::WindowsResource;
 
 fn main() -> io::Result<()> {
     if std::env::var("CARGO_CFG_TARGET_FAMILY").unwrap() == "windows" {
