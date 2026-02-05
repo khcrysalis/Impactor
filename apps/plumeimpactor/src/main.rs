@@ -16,9 +16,25 @@ mod tray;
 pub const APP_NAME: &str = "Impactor";
 pub const APP_NAME_VERSIONED: &str = concat!("Impactor", " - Version ", env!("CARGO_PKG_VERSION"));
 
+fn configure_renderer_environment() {
+    if std::env::var_os("ICED_BACKEND").is_none() {
+        // Keep wgpu as primary renderer and use tiny-skia only as fallback.
+        unsafe {
+            std::env::set_var("ICED_BACKEND", "wgpu,tiny-skia");
+        }
+    }
+
+    if std::env::var_os("WGPU_POWER_PREF").is_none() {
+        unsafe {
+            std::env::set_var("WGPU_POWER_PREF", "none");
+        }
+    }
+}
+
 fn main() -> iced::Result {
     env_logger::init();
     let _ = rustls::crypto::ring::default_provider().install_default();
+    configure_renderer_environment();
 
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     let _single_instance = match SingleInstance::new(APP_NAME) {
