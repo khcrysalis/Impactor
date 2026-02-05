@@ -41,7 +41,7 @@ impl RefreshDaemon {
             store_path: get_data_path().join("accounts.json"),
             connected_devices: Arc::new(Mutex::new(HashMap::new())),
             active_tasks: Arc::new(Mutex::new(HashSet::new())),
-            check_interval: Duration::from_secs(60 * 30), // Check every 30 minutes
+            check_interval: Duration::from_secs(60 * 3), // Check every 3 minutes
         }
     }
 
@@ -93,9 +93,21 @@ impl RefreshDaemon {
 
                     log::info!("App at {:?} needs refresh for device {}", app.path, udid);
 
-                    // Note: wait_for_device might take a long time.
-                    // refresh_app will double-check the lock once the device is found.
-                    let device = self.wait_for_device(udid).await?;
+                    let device = self
+                        .connected_devices
+                        .lock()
+                        .ok()
+                        .and_then(|devices| devices.get(udid).cloned());
+
+                    let Some(device) = device else {
+                        log::debug!(
+                            "App at {:?} is due for refresh on {}, but no matching connected device was found. Retrying in {} seconds.",
+                            app.path,
+                            udid,
+                            self.check_interval.as_secs()
+                        );
+                        continue;
+                    };
 
                     if let Err(e) = self.refresh_app(&store, refresh_device, app, &device).await {
                         log::error!("Error refreshing app: {}", e);
@@ -112,28 +124,6 @@ impl RefreshDaemon {
             .lock()
             .map(|t| t.contains(udid))
             .unwrap_or(false)
-    }
-
-    async fn wait_for_device(&self, udid: &str) -> Result<Device, String> {
-        log::info!("Waiting for device {} to connect...", udid);
-
-        let timeout = Duration::from_secs(60 * 60); // 1 hour timeout
-        let start = std::time::Instant::now();
-
-        loop {
-            if start.elapsed() > timeout {
-                return Err(format!("Timeout waiting for device {} to connect", udid));
-            }
-
-            if let Ok(devices) = self.connected_devices.lock() {
-                if let Some(device) = devices.get(udid) {
-                    log::info!("Device {} connected", udid);
-                    return Ok(device.clone());
-                }
-            }
-
-            tokio::time::sleep(Duration::from_secs(5)).await;
-        }
     }
 
     pub async fn refresh_app(
