@@ -122,6 +122,15 @@ ifeq ($(APPIMAGE),1)
 			--appdir $(APPIMAGE_APPDIR) \
 			--executable target/$(PROFILE)/plumeimpactor \
 			--desktop-file package/linux/$(ID).desktop \
+			--exclude-library='libglib-2.0.so*' \
+			--exclude-library='libgobject-2.0.so*' \
+			--exclude-library='libgio-2.0.so*' \
+			--exclude-library='libgmodule-2.0.so*' \
+			--exclude-library='libgthread-2.0.so*' \
+			--exclude-library='libxkbcommon.so*' \
+			--exclude-library='libxkbcommon-x11.so*' \
+			--exclude-library='libX11.so*' \
+			--exclude-library='libxcb.so*' \
 			$$lib_args \
 			--output appimage
 	@rm /tmp/linuxdeploy.appimage
