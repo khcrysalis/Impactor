@@ -120,6 +120,29 @@ pub(crate) fn tray_subscription() -> Subscription<Message> {
     })
 }
 
+pub(crate) fn tray_menu_refresh_subscription() -> Subscription<Message> {
+    Subscription::run(|| {
+        iced::stream::channel(
+            10,
+            |mut output: iced::futures::channel::mpsc::Sender<Message>| async move {
+                use iced::futures::{SinkExt, StreamExt};
+                let (tx, mut rx) = iced::futures::channel::mpsc::unbounded::<Message>();
+
+                std::thread::spawn(move || {
+                    loop {
+                        std::thread::sleep(std::time::Duration::from_secs(30));
+                        let _ = tx.unbounded_send(Message::UpdateTrayMenu);
+                    }
+                });
+
+                while let Some(message) = rx.next().await {
+                    let _ = output.send(message).await;
+                }
+            },
+        )
+    })
+}
+
 pub(crate) fn file_hover_subscription() -> Subscription<Message> {
     let window_events = window::events().filter_map(|(_id, event)| match event {
         window::Event::FileHovered(_) => Some(Message::MainScreen(general::Message::FilesHovered)),
