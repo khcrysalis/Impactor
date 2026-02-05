@@ -699,6 +699,8 @@ impl Impactor {
                 Subscription::none()
             };
 
+        let tray_menu_refresh_subscription = subscriptions::tray_menu_refresh_subscription();
+
         let close_subscription = iced::event::listen_with(|event, _status, _id| {
             if let iced::Event::Window(window::Event::CloseRequested) = event {
                 return Some(Message::HideWindow);
@@ -711,6 +713,7 @@ impl Impactor {
             tray_subscription,
             hover_subscription,
             progress_subscription,
+            tray_menu_refresh_subscription,
             close_subscription,
         ])
     }
