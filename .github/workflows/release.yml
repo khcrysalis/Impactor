@@ -17,9 +17,9 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             arch: x86_64
-          - os: ubuntu-22.04-arm
+          - os: ubuntu-24.04-arm
             arch: aarch64
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +48,7 @@ jobs:
           path: dist/*
 
   build-windows:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -103,7 +103,7 @@ jobs:
           path: dist/Impactor-windows-x86_64-setup.exe
 
   build-macos-slices:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         include:
@@ -236,7 +236,7 @@ jobs:
             dist/${{ env.BUNDLE_NAME }}-macos-universal.dmg
             dist/${{ env.BINARY_NAME_CLI }}-macos-universal
   release:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [build-linux, build-windows-installer, build-macos-universal]
     steps:
       - uses: actions/checkout@v4
