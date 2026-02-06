@@ -62,6 +62,12 @@ pub enum Error {
     PKCS8(#[from] rsa::pkcs8::Error),
     #[error("RCGen error: {0}")]
     RcGen(#[from] rcgen::RcgenError),
+    #[error("AES-GCM error: {0}")]
+    AesGcm(#[from] aes_gcm::Error),
+    #[error("AES-GCM slice error: {0}")]
+    Slice(#[from] std::array::TryFromSliceError),
+    #[error("Invalid key length for AES-GCM: {0}")]
+    SHA2(#[from] sha2::digest::InvalidLength),
 }
 
 pub fn client() -> Result<reqwest::Client, Error> {

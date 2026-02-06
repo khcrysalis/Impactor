@@ -2,11 +2,12 @@ mod login;
 mod token;
 mod two_factor_auth;
 
-use cbc::cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7};
-use hmac::{Hmac, Mac};
+use aes::cipher::BlockModeDecrypt;
+use cbc::cipher::{KeyIvInit, block_padding::Pkcs7};
+use hmac::{Hmac, KeyInit, Mac};
 use reqwest::Response;
 use sha2::Sha256;
-use srp::client::SrpClientVerifier;
+use srp::ClientVerifier;
 
 use crate::Error;
 
@@ -38,18 +39,18 @@ pub fn check_error(res: &plist::Dictionary) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn decrypt_cbc(usr: &SrpClientVerifier<Sha256>, data: &[u8]) -> Vec<u8> {
+pub fn decrypt_cbc(usr: &ClientVerifier<Sha256>, data: &[u8]) -> Vec<u8> {
     let extra_data_key = create_session_key(usr, "extra data key:");
     let extra_data_iv = create_session_key(usr, "extra data iv:");
     let extra_data_iv = &extra_data_iv[..16];
 
     cbc::Decryptor::<aes::Aes256>::new_from_slices(&extra_data_key, extra_data_iv)
         .unwrap()
-        .decrypt_padded_vec_mut::<Pkcs7>(&data)
+        .decrypt_padded_vec::<Pkcs7>(&data)
         .unwrap()
 }
 
-pub fn create_session_key(usr: &SrpClientVerifier<Sha256>, name: &str) -> Vec<u8> {
+pub fn create_session_key(usr: &ClientVerifier<Sha256>, name: &str) -> Vec<u8> {
     Hmac::<Sha256>::new_from_slice(&usr.key())
         .unwrap()
         .chain_update(name.as_bytes())

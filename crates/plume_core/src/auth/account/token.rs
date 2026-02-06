@@ -1,9 +1,7 @@
-use aes_gcm::aead::generic_array::{GenericArray, typenum::U16};
+use aes::cipher::consts::U16;
+use aes_gcm::AesGcm;
 use aes_gcm::aes::Aes256;
-use aes_gcm::{
-    AesGcm,
-    aead::{Aead, Payload},
-};
+use aes_gcm::{AeadInOut, Nonce};
 use hmac::digest::KeyInit;
 use hmac::{Hmac, Mac};
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -15,8 +13,6 @@ use crate::auth::account::{check_error, parse_response};
 use crate::auth::{
     Account, AppToken, AuthTokenRequest, AuthTokenRequestBody, GSA_ENDPOINT, RequestHeader,
 };
-
-type Aes256Gcm16 = AesGcm<Aes256, U16>;
 
 impl Account {
     pub async fn get_app_token(&self, app_name: &str) -> Result<AppToken, Error> {
@@ -106,28 +102,17 @@ impl Account {
         if iv.len() != 16 {
             return Err(Error::Parse);
         }
-        // TODO: fucking botan
-        let cipher = Aes256Gcm16::new(GenericArray::from_slice(sk));
 
-        let nonce = GenericArray::from_slice(iv);
+        let key = aes_gcm::Key::<AesGcm<Aes256, U16>>::try_from(sk)?;
+        let cipher = AesGcm::<Aes256, U16>::new(&key);
+        let nonce = Nonce::<U16>::try_from(iv)?;
 
-        let decrypted = cipher
-            .decrypt(
-                nonce,
-                Payload {
-                    msg: ciphertext_and_tag,
-                    aad: header, // b"XYZ"
-                },
-            )
-            .map_err(|_| {
-                Error::AuthSrpWithMessage(
-                    0,
-                    "Failed to decrypt app token (AES-256-GCM).".to_string(),
-                )
-            })?;
+        let mut buf = ciphertext_and_tag.to_vec();
+
+        cipher.decrypt_in_place(&nonce, header, &mut buf)?;
 
         let decrypted_token: plist::Dictionary =
-            plist::from_bytes(&decrypted).map_err(|_| Error::Parse)?;
+            plist::from_bytes(&buf).map_err(|_| Error::Parse)?;
 
         let t_val = decrypted_token.get("t").ok_or(Error::Parse)?;
         let app_tokens = t_val.as_dictionary().ok_or(Error::Parse)?;
@@ -146,7 +131,7 @@ impl Account {
     }
 
     fn create_checksum(session_key: &Vec<u8>, dsid: &str, app_name: &str) -> Vec<u8> {
-        <Hmac<Sha256> as KeyInit>::new_from_slice(&session_key)
+        Hmac::<Sha256>::new_from_slice(&session_key)
             .unwrap()
             .chain_update("apptokens".as_bytes())
             .chain_update(dsid.as_bytes())
