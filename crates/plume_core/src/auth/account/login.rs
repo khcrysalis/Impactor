@@ -112,7 +112,7 @@ impl Account {
         username: &str,
         password: &str,
     ) -> Result<LoginState, Error> {
-        let username_for_spd = username.to_string();
+        let username_for_spd = username.to_string().to_lowercase();
         let srp_client = SrpClient::<Sha256>::new(&G_2048);
         let a: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
         let a_pub = srp_client.compute_public_ephemeral(&a);
@@ -142,7 +142,7 @@ impl Account {
             cpd: anisette.to_plist(true, false, false),
             operation: "init".to_string(),
             ps: vec!["s2k".to_string(), "s2k_fo".to_string()],
-            username: username.to_string(),
+            username: username_for_spd.clone(),
         };
 
         let init_packet = InitRequest {
@@ -188,7 +188,7 @@ impl Account {
             c: c.to_string(),
             cpd: anisette.to_plist(true, false, false),
             operation: "complete".to_string(),
-            username: username.to_string(),
+            username: username_for_spd.clone(),
         };
 
         let challenge_packet = ChallengeRequest {
