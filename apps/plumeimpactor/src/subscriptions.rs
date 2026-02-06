@@ -463,6 +463,7 @@ pub(crate) async fn run_installation(
                         name: package_file.get_name(),
                         bundle_id: package_file.get_bundle_identifier(),
                         path: dest_path.clone(),
+                        only_register_main_bundle: options.embedding.single_profile,
                         scheduled_refresh,
                     };
 

@@ -20,6 +20,8 @@ pub struct RefreshApp {
     pub name: Option<String>,
     #[serde(default)]
     pub bundle_id: Option<String>,
+    #[serde(default)]
+    pub only_register_main_bundle: bool,
     pub scheduled_refresh: DateTime<Utc>, // the scheduled refresh time will happen a day before expiration
 }
 

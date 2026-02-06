@@ -8,7 +8,7 @@ use plume_core::{
     AnisetteConfiguration, CertificateIdentity, MobileProvision, developer::DeveloperSession,
 };
 use plume_store::{AccountStore, RefreshDevice};
-use plume_utils::{Bundle, Device, Signer, SignerMode, SignerOptions};
+use plume_utils::{Bundle, Device, Signer, SignerEmbedding, SignerMode, SignerOptions};
 
 use crate::defaults::get_data_path;
 
@@ -270,6 +270,9 @@ impl RefreshDaemon {
 
         let options = SignerOptions {
             mode: SignerMode::Pem,
+            embedding: SignerEmbedding {
+                single_profile: app.only_register_main_bundle,
+            },
             ..Default::default()
         };
 
@@ -322,6 +325,9 @@ impl RefreshDaemon {
 
         let options = SignerOptions {
             mode: SignerMode::Pem,
+            embedding: SignerEmbedding {
+                single_profile: app.only_register_main_bundle,
+            },
             ..Default::default()
         };
 
