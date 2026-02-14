@@ -73,15 +73,15 @@ That's the entire gist of how this works! Of course its very short and brief, ho
 Impactor also allows the user to generate a pairing file for applications to talk directly to the device remotely. This pairing file is device specific and will become invalid if you ever re-trust/update/reset.
 
 Supported apps for pairing file:
-- `SideStore`
-- `Feather`
-- `SparseBox`
-- `LiveContainer + SideStore`
-- `Antrag`
-- `Protokolle`
-- `StikDebug`
-- `EnsWilde`
-- `ByeTunes`
+- [`SideStore`](https://github.com/SideStore/SideStore): Uses your Apple ID to install iOS apps.
+- [`Feather`](https://github.com/khcrysalis/Feather): Uses raw certificates to install iOS apps.
+- [`SparseBox`](https://github.com/khanhduytran0/SparseBox): Device customizer.
+- [`LiveContainer + SideStore`](https://github.com/LiveContainer/LiveContainer) Uses your Apple ID to install iOS apps.
+- [`Antrag`](https://github.com/khcrysalis/Antrag): List currently installed iOS apps.
+- [`Protokolle`](https://github.com/khcrysalis/Protokolle): View logs from system processes.
+- [`StikDebug`](https://github.com/StephenDev0/StikDebug): Enable JIT for iOS apps.
+- [`EnsWilde`](https://github.com/YangJiiii/EnsWilde): Device customizer.
+- [`ByeTunes`](https://github.com/EduAlexxis/ByeTunes): Import mp3 files to the Music App.
 
 You can retrieve this file by either sideloading the supported app of your choice, or going to the `Utilities` page when a device is connected and press install for the supported app. Head over to the [downloads](https://github.com/khcrysalis/PlumeImpactor/releases).
 
