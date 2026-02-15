@@ -198,6 +198,8 @@ impl Account {
         let mut buffer = Vec::new();
         plist::to_writer_xml(&mut buffer, &challenge_packet)?;
 
+        gsa_headers.insert("Connection", HeaderValue::from_static("close"));
+
         let res = self
             .client
             .post(GSA_ENDPOINT)
