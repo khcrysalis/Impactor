@@ -13,11 +13,15 @@ plist.workspace = true
 uuid.workspace = true
 thiserror.workspace = true
 log.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rustls.workspace = true
 # Core dependencies
-serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1" }
-rustls = { version = "0.23.32", default-features = false, features = ["std", "tls12", "ring"] }
-reqwest = { version = "0.11.14", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+reqwest = { version = "0.11.14", default-features = false, features = [
+    "blocking",
+    "json",
+    "rustls-tls",
+] }
 regex = "1.11.2"
 base64 = "0.22"
 hex = "0.4.3"
@@ -35,13 +39,15 @@ x509-certificate = "0.24.0"
 pem = "3.0.5"
 pem-rfc7468 = "0.7.0"
 rcgen = "0.9.3"
-sha1 = "0.10.6" # p12
-p12-keystore = "0.2.0" # p12 crate only supports legacy PKCS#12
+sha1 = "0.10.6"             # p12
+p12-keystore = "0.2.0"      # p12 crate only supports legacy PKCS#12
 # Apple
 goblin = "0.9.3"
 # Forks
-apple-codesign = { git = "https://github.com/PlumeImpactor/plume-apple-platform-rs", rev = "428b42f", package = "apple-codesign", default-features =  false }
-omnisette = { git = "https://github.com/PlumeImpactor/omnisette", rev = "c066ac2", package = "omnisette", features = ["remote-anisette-v3"] }
+apple-codesign = { git = "https://github.com/PlumeImpactor/plume-apple-platform-rs", rev = "428b42f", package = "apple-codesign", default-features = false }
+omnisette = { git = "https://github.com/PlumeImpactor/omnisette", rev = "c066ac2", package = "omnisette", features = [
+    "remote-anisette-v3",
+] }
 srp = "0.7.0-rc.1"
 
 [features]

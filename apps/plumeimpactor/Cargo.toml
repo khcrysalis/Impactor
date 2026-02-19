@@ -15,18 +15,11 @@ plist.workspace = true
 futures.workspace = true
 env_logger.workspace = true
 log.workspace = true
+chrono.workspace = true
+rustls.workspace = true
 plume_core = { path = "../../crates/plume_core", features = ["tweaks"] }
 plume_utils = { path = "../../crates/plume_utils" }
 plume_store = { path = "../../crates/plume_store" }
-
-# TODO: move to workspace
-chrono = { version = "0.4.42", features = ["serde"] }
-
-rustls = { version = "0.23.32", default-features = false, features = [
-    "std",
-    "tls12",
-    "ring",
-] }
 
 iced = { version = "0.14.0", features = ["image-without-codecs", "advanced"] }
 tray-icon = { version = "0.21.2", default-features = false }
