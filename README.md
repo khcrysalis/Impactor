@@ -11,7 +11,7 @@ Open-source, cross-platform, and feature rich iOS sideloading application. Suppo
 \
 Auto-refresh will not work the same as it would on other platforms like macOS/Windows, due to `usbmuxd` lacking WiFi connectivity so it will attempt to do it automatically only when a device is plugged in, we are looking for a proper solution though.\
 \
-Some distributions (like Bazzite) may need you to run `sudo update-crypto-policies` so it `usbmuxd` ends up detecting device again.
+Some distributions (like Bazzite) may need you to run `sudo update-crypto-policies` so `usbmuxd` ends up detecting the device again.
 
 [^2]: On Windows, [iTunes](https://support.apple.com/en-us/106372) must be downloaded so Impactor is able to use the drivers for interacting with Apple devices.
 
