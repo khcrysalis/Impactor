@@ -16,25 +16,12 @@ mod tray;
 pub const APP_NAME: &str = "Impactor";
 pub const APP_NAME_VERSIONED: &str = concat!("Impactor", " - Version ", env!("CARGO_PKG_VERSION"));
 
-fn configure_renderer_environment() {
-    if std::env::var_os("ICED_BACKEND").is_none() {
-        // Keep wgpu as primary renderer and use tiny-skia only as fallback.
-        unsafe {
-            std::env::set_var("ICED_BACKEND", "wgpu,tiny-skia");
-        }
-    }
-
-    if std::env::var_os("WGPU_POWER_PREF").is_none() {
-        unsafe {
-            std::env::set_var("WGPU_POWER_PREF", "none");
-        }
-    }
-}
-
 fn main() -> iced::Result {
     env_logger::init();
-    let _ = rustls::crypto::ring::default_provider().install_default();
-    configure_renderer_environment();
+
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .ok();
 
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     let _single_instance = match SingleInstance::new(APP_NAME) {
@@ -59,12 +46,31 @@ fn main() -> iced::Result {
     #[cfg(target_os = "macos")]
     {
         notify_rust::get_bundle_identifier_or_default("Impactor");
-        let _ = notify_rust::set_application("dev.khcrysalis.PlumeImpactor");
+        notify_rust::set_application("dev.khcrysalis.PlumeImpactor").ok();
     }
 
     let (_daemon_handle, connected_devices) = spawn_refresh_daemon();
     screen::set_refresh_daemon_devices(connected_devices);
 
+    // we set this to none so we can avoid prioritizing the gpu
+    unsafe {
+        std::env::set_var("WGPU_POWER_PREF", "none");
+    }
+
+    // We're going to try and try running the iced_daemon with different
+    // environment variables so it can run properly
+    // RE: https://github.com/claration/Impactor/issues/103, https://github.com/claration/Impactor/issues/90
+    run_daemon().or_else(|_| try_with_env("ICED_BACKEND", "tiny-skia"))
+}
+
+fn try_with_env(var: &str, value: &str) -> iced::Result {
+    unsafe {
+        std::env::set_var(var, value);
+    }
+    run_daemon()
+}
+
+fn run_daemon() -> iced::Result {
     iced::daemon(
         screen::Impactor::new,
         screen::Impactor::update,
